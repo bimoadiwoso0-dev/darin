@@ -1,0 +1,45 @@
+<!doctype html>
+<!--
+  زبان و جهت روی خودِ <html> تعیین می‌شوند، نه با CSS.
+  این تنها راهی است که مرورگر الگوریتم دوجهته (bidi) را برای کل صفحه
+  درست اجرا کند — قانون ۱۲۲: RTL واقعی، نه برعکس کردن text-align.
+-->
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#1e40af" />
+    <meta name="description" content="دارین — سامانه جامع مدیریت کتابخانه" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <title>دارین — سامانه مدیریت کتابخانه</title>
+
+    <!--
+      تم پیش از رنگ‌آمیزی صفحه اعمال می‌شود تا کاربرِ حالت تیره،
+      یک پرش سفید در لحظه بارگذاری نبیند.
+    -->
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem('darin:theme');
+          var dark =
+            stored === 'dark' ||
+            ((stored === 'system' || !stored) &&
+              window.matchMedia('(prefers-color-scheme: dark)').matches);
+          if (dark) document.documentElement.classList.add('dark');
+        } catch (e) {
+          /* حالت ناشناس مرورگر — تم پیش‌فرض روشن می‌ماند */
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript>
+      <div style="padding: 2rem; font-family: system-ui; text-align: center">
+        برای استفاده از این سامانه باید JavaScript مرورگر فعال باشد.
+      </div>
+    </noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

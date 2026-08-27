@@ -1,0 +1,239 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * فونت Vazirmatn — محلی سرو می‌شود نه از CDN.
+ * کتابخانه ممکن است اینترنت محدود یا قطع داشته باشد؛ رابط کاربری نباید
+ * به دلیل نرسیدن فونت، با فونت پیش‌فرض سیستم و چیدمان به‌هم‌ریخته باز شود.
+ */
+@font-face {
+  font-family: 'Vazirmatn';
+  src: url('/fonts/Vazirmatn-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Vazirmatn';
+  src: url('/fonts/Vazirmatn-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Vazirmatn';
+  src: url('/fonts/Vazirmatn-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@layer base {
+  /*
+   * پالت رنگ — حالت روشن.
+   * مقادیر به‌صورت اجزای RGB بدون تابع نوشته می‌شوند تا Tailwind بتواند
+   * شفافیت (`bg-primary/10`) را روی آنها اعمال کند.
+   *
+   * کنتراست: تمام ترکیب‌های متن/زمینه حداقل نسبت ۴٫۵:۱ (WCAG AA) دارند.
+   */
+  :root {
+    --color-background: 246 247 249;
+    --color-surface: 255 255 255;
+    --color-surface-raised: 255 255 255;
+    --color-surface-sunken: 241 243 246;
+    --color-border: 226 230 236;
+    --color-border-strong: 203 210 220;
+
+    --color-content: 24 30 41;          /* 15.8:1 روی surface */
+    --color-content-muted: 91 102 119;  /*  5.9:1 */
+    --color-content-subtle: 132 143 159; /* 3.6:1 — فقط برای متن غیرضروری */
+    --color-content-inverted: 255 255 255;
+
+    --color-primary: 30 64 175;
+    --color-primary-hover: 26 54 148;
+    --color-primary-soft: 232 238 252;
+    --color-primary-content: 255 255 255;
+
+    --color-success: 21 128 61;
+    --color-success-soft: 231 246 236;
+    --color-success-content: 20 83 45;
+
+    --color-warning: 180 83 9;
+    --color-warning-soft: 254 243 224;
+    --color-warning-content: 124 45 18;
+
+    --color-danger: 185 28 28;
+    --color-danger-soft: 254 235 235;
+    --color-danger-content: 127 29 29;
+
+    --color-info: 3 105 161;
+    --color-info-soft: 230 244 252;
+    --color-info-content: 12 74 110;
+  }
+
+  /* حالت تیره (قانون ۵۸) */
+  .dark {
+    --color-background: 15 18 24;
+    --color-surface: 22 26 34;
+    --color-surface-raised: 30 35 45;
+    --color-surface-sunken: 17 20 27;
+    --color-border: 44 51 63;
+    --color-border-strong: 62 71 87;
+
+    --color-content: 232 236 242;
+    --color-content-muted: 156 166 181;
+    --color-content-subtle: 116 126 141;
+    --color-content-inverted: 15 18 24;
+
+    --color-primary: 96 140 246;
+    --color-primary-hover: 128 164 250;
+    --color-primary-soft: 28 41 74;
+    --color-primary-content: 12 17 28;
+
+    --color-success: 74 194 121;
+    --color-success-soft: 21 48 34;
+    --color-success-content: 167 232 192;
+
+    --color-warning: 232 160 63;
+    --color-warning-soft: 56 39 15;
+    --color-warning-content: 250 214 165;
+
+    --color-danger: 239 106 106;
+    --color-danger-soft: 62 25 25;
+    --color-danger-content: 252 190 190;
+
+    --color-info: 84 168 224;
+    --color-info-soft: 17 44 62;
+    --color-info-content: 178 220 244;
+  }
+
+  html {
+    /* اعداد لاتین در همه‌جا خوانا بمانند حتی داخل متن فارسی */
+    font-variant-numeric: lining-nums tabular-nums;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-background text-content font-sans text-base antialiased;
+    /* جلوگیری از پرش افقی صفحه در جدول‌های عریض */
+    overflow-x: hidden;
+  }
+
+  /*
+   * حلقه تمرکز — فقط هنگام ناوبری با صفحه‌کلید (قانون ۵۷).
+   * `:focus-visible` باعث می‌شود کلیک با ماوس حلقه نشان ندهد اما Tab بدهد.
+   */
+  :focus-visible {
+    @apply outline-none ring-2 ring-primary/60 ring-offset-2 ring-offset-background;
+  }
+
+  /* اسکرول‌بار هماهنگ با تم */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--color-border-strong)) transparent;
+  }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: rgb(var(--color-border-strong));
+    border-radius: 6px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+
+  /* حذف فلش‌های عددی که در فیلدهای شماره کتاب مزاحم‌اند */
+  input[type='number']::-webkit-inner-spin-button,
+  input[type='number']::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type='number'] { -moz-appearance: textfield; }
+
+  /* احترام به ترجیح کاربر برای کاهش انیمیشن */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  /*
+   * فیلدهایی که همیشه محتوای لاتین دارند (بارکد، شابک، نام کاربری).
+   * بدون این، مرورگر متن لاتین را داخل فیلد RTL برعکس نشان می‌دهد و
+   * کتابدار فکر می‌کند بارکد اشتباه اسکن شده (قانون ۳ و ۱۲۲).
+   */
+  .field-ltr {
+    direction: ltr;
+    text-align: start;
+    font-variant-numeric: lining-nums tabular-nums;
+  }
+
+  /* ستون‌های عددی جدول — تراز راست با ارقام هم‌عرض برای مقایسه چشمی */
+  .cell-numeric {
+    direction: ltr;
+    text-align: end;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* اسکلت بارگذاری (قانون ۹۴) */
+  .skeleton {
+    @apply relative overflow-hidden rounded bg-surface-sunken;
+  }
+  .skeleton::after {
+    content: '';
+    @apply absolute inset-0 animate-shimmer;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgb(var(--color-border) / 0.55),
+      transparent
+    );
+    /* جهت درخشش در RTL برعکس می‌شود */
+    --shimmer-to: -100%;
+  }
+  [dir='ltr'] .skeleton::after { --shimmer-to: 100%; }
+}
+
+@layer utilities {
+  /* قطع متن طولانی در یک یا چند خط */
+  .truncate-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
+
+/*
+ * چاپ (قوانین ۱۴، ۸۲).
+ * گزارش‌ها و برچسب‌ها باید بدون منو، دکمه و پس‌زمینه چاپ شوند.
+ */
+@media print {
+  @page { margin: 12mm; }
+
+  body {
+    background: #fff !important;
+    color: #000 !important;
+    font-size: 11pt;
+  }
+
+  /* هر چیزی با این کلاس در چاپ حذف می‌شود */
+  .no-print,
+  nav, aside, header button, .toast-viewport {
+    display: none !important;
+  }
+
+  .print-only { display: block !important; }
+
+  /* جدول‌ها نباید وسط ردیف بشکنند */
+  tr, .print-block { break-inside: avoid; }
+  thead { display: table-header-group; }
+
+  a[href]::after { content: none !important; }
+}
+
+.print-only { display: none; }

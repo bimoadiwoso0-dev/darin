@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="دارین">
+  <rect width="64" height="64" rx="14" fill="#1e40af"/>
+  <g fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M14 16h13a7 7 0 0 1 7 7v25a6 6 0 0 0-6-6H14z"/>
+    <path d="M50 16H37a7 7 0 0 0-7 7v25a6 6 0 0 1 6-6h14z"/>
+    <path d="M32 23v25"/>
+  </g>
+</svg>
