@@ -1,0 +1,1431 @@
+// ─────────────────────────────────────────────────────────────────────────────
+//  Darin LMS — مدل داده
+//  مستندات کامل: docs/DATABASE.md
+//
+//  اصول حاکم بر این Schema:
+//   1. تفکیک «رکورد کتاب‌شناختی» (Book) از «نسخه فیزیکی» (BookCopy)
+//   2. Soft Delete برای موجودیت‌های اصلی؛ حذف‌ناپذیری کامل برای رکوردهای تراکنشی
+//   3. `branchId` روی همه موجودیت‌های فیزیکی برای پشتیبانی آینده از چند شعبه
+//   4. تمام DateTime ها UTC (`timestamptz`) — تبدیل شمسی فقط در لایه نمایش
+//   5. مبالغ مالی همیشه Decimal، هرگز Float
+// ─────────────────────────────────────────────────────────────────────────────
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+  // ماژول CommonJS چون NestJS با CJS اجرا می‌شود
+  moduleFormat = "cjs"
+  runtime      = "nodejs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  شعبه
+// ═══════════════════════════════════════════════════════════════════════════
+
+model Branch {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code      String   @unique @db.VarChar(20)
+  name      String   @db.VarChar(200)
+  address   String?  @db.Text
+  phone     String?  @db.VarChar(40)
+  isDefault Boolean  @default(false)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  copies             BookCopy[]
+  members            Member[]
+  locations          Location[]
+  loans              Loan[]
+  users              User[]
+  inventorySessions  InventorySession[]
+  transfersFrom      Transfer[]         @relation("TransferFrom")
+  transfersTo        Transfer[]         @relation("TransferTo")
+
+  @@map("branches")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  هویت و دسترسی (IAM)
+// ═══════════════════════════════════════════════════════════════════════════
+
+model User {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  username         String    @unique @db.VarChar(60)
+  email            String?   @unique @db.VarChar(160)
+  passwordHash     String    @db.Text
+  fullName         String    @db.VarChar(160)
+  phone            String?   @db.VarChar(40)
+  isActive         Boolean   @default(true)
+  mustChangePassword Boolean @default(false)
+  lastLoginAt      DateTime? @db.Timestamptz(3)
+  /// شمارنده تلاش ناموفق — با ورود موفق صفر می‌شود (محافظت در برابر Brute Force)
+  failedLoginCount Int       @default(0)
+  lockedUntil      DateTime? @db.Timestamptz(3)
+  /// ترجیحات کاربر: { theme: 'light'|'dark'|'system', density, pinnedFilters }
+  preferences      Json      @default("{}")
+  avatarId         String?   @db.Uuid
+  branchId         String?   @db.Uuid
+  createdAt        DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime  @updatedAt @db.Timestamptz(3)
+  deletedAt        DateTime? @db.Timestamptz(3)
+
+  branch        Branch?        @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  roles         UserRole[]
+  refreshTokens RefreshToken[]
+  auditLogs     AuditLog[]
+  savedFilters  SavedFilter[]
+  notifications Notification[]
+
+  @@index([deletedAt])
+  @@index([isActive])
+  @@map("users")
+}
+
+model Role {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key         String   @unique @db.VarChar(60)
+  name        String   @db.VarChar(120)
+  description String?  @db.Text
+  /// نقش‌های سیستمی قابل حذف نیستند؛ فقط مجوزهایشان قابل تغییر است (به‌جز SUPER_ADMIN)
+  isSystem    Boolean  @default(false)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+
+  users       UserRole[]
+  permissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key         String @unique @db.VarChar(80)
+  group       String @db.VarChar(40)
+  label       String @db.VarChar(160)
+
+  roles RolePermission[]
+
+  @@index([group])
+  @@map("permissions")
+}
+
+model UserRole {
+  userId String @db.Uuid
+  roleId String @db.Uuid
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+model RolePermission {
+  roleId       String @db.Uuid
+  permissionId String @db.Uuid
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+/// توکن تازه‌سازی با چرخش. `familyId` امکان تشخیص استفاده مجدد از توکن باطل‌شده
+/// و باطل کردن کل زنجیره را می‌دهد (Refresh Token Reuse Detection).
+model RefreshToken {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @unique @db.VarChar(128)
+  familyId  String    @db.Uuid
+  expiresAt DateTime  @db.Timestamptz(3)
+  revokedAt DateTime? @db.Timestamptz(3)
+  userAgent String?   @db.VarChar(400)
+  ip        String?   @db.VarChar(60)
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  کاتالوگ
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// رکورد استنادی پدیدآورنده (Authority Record).
+/// یک شخص می‌تواند در یک کتاب نویسنده و در کتابی دیگر مترجم باشد — به همین دلیل
+/// جدول‌های جداگانه Author/Translator نداریم (ADR-02).
+model Person {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  fullName       String    @db.VarChar(200)
+  /// نسخه نرمال‌شده برای جستجو — با Trigger پر می‌شود، دستی مقداردهی نکنید
+  nameNormalized String    @default("") @db.VarChar(200)
+  latinName      String?   @db.VarChar(200)
+  birthDate      DateTime? @db.Date
+  deathDate      DateTime? @db.Date
+  biography      String?   @db.Text
+  website        String?   @db.VarChar(300)
+  nationality    String?   @db.VarChar(80)
+  photoId        String?   @db.Uuid
+  note           String?   @db.Text
+  createdAt      DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime  @updatedAt @db.Timestamptz(3)
+  deletedAt      DateTime? @db.Timestamptz(3)
+
+  contributions BookContributor[]
+
+  @@index([deletedAt])
+  @@map("persons")
+}
+
+model Publisher {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String    @db.VarChar(200)
+  nameNormalized String    @default("") @db.VarChar(200)
+  latinName      String?   @db.VarChar(200)
+  city           String?   @db.VarChar(120)
+  address        String?   @db.Text
+  phone          String?   @db.VarChar(40)
+  email          String?   @db.VarChar(160)
+  website        String?   @db.VarChar(300)
+  logoId         String?   @db.Uuid
+  note           String?   @db.Text
+  createdAt      DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime  @updatedAt @db.Timestamptz(3)
+  deletedAt      DateTime? @db.Timestamptz(3)
+
+  books Book[]
+
+  @@index([deletedAt])
+  @@map("publishers")
+}
+
+model Series {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title          String    @db.VarChar(250)
+  titleNormalized String   @default("") @db.VarChar(250)
+  description    String?   @db.Text
+  totalPlanned   Int?
+  createdAt      DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime  @updatedAt @db.Timestamptz(3)
+  deletedAt      DateTime? @db.Timestamptz(3)
+
+  books Book[]
+
+  @@index([deletedAt])
+  @@map("series")
+}
+
+enum CategoryKind {
+  SUBJECT // موضوع
+  GENRE   // ژانر
+}
+
+/// درخت دسته‌بندی با Materialized Path.
+/// `path` مثل `.a1b2.c3d4.` — کوئری زیردرخت با `path LIKE '.a1b2.%'` انجام می‌شود.
+model Category {
+  id       String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  parentId String?      @db.Uuid
+  kind     CategoryKind @default(SUBJECT)
+  name     String       @db.VarChar(160)
+  nameNormalized String  @default("") @db.VarChar(160)
+  code     String?      @db.VarChar(40)
+  /// مسیر مادیشده — با Trigger/Service نگهداری می‌شود
+  path     String       @default("") @db.VarChar(1000)
+  depth    Int          @default(0)
+  sortOrder Int         @default(0)
+  colorHex String?      @db.VarChar(9)
+  description String?   @db.Text
+  createdAt DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime    @updatedAt @db.Timestamptz(3)
+  deletedAt DateTime?   @db.Timestamptz(3)
+
+  parent   Category?      @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children Category[]     @relation("CategoryTree")
+  books    BookCategory[]
+
+  @@unique([parentId, name, kind])
+  @@index([path])
+  @@index([parentId])
+  @@index([deletedAt])
+  @@map("categories")
+}
+
+model Tag {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String   @unique @db.VarChar(80)
+  nameNormalized String @default("") @db.VarChar(80)
+  colorHex  String?  @db.VarChar(9)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  books BookTag[]
+
+  @@map("tags")
+}
+
+model Donor {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  fullName  String    @db.VarChar(200)
+  nameNormalized String @default("") @db.VarChar(200)
+  phone     String?   @db.VarChar(40)
+  email     String?   @db.VarChar(160)
+  address   String?   @db.Text
+  note      String?   @db.Text
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
+  deletedAt DateTime? @db.Timestamptz(3)
+
+  copies BookCopy[]
+
+  @@index([deletedAt])
+  @@map("donors")
+}
+
+enum BookFormat {
+  RAHLI
+  SOLTANI
+  VAZIRI
+  ROQEI
+  JEEBI
+  KHESHTI
+  PALTOEI
+  OTHER
+}
+
+enum BindingType {
+  HARDCOVER
+  PAPERBACK
+  SPIRAL
+  LEATHER
+  OTHER
+}
+
+enum CalendarType {
+  SOLAR_HIJRI
+  GREGORIAN
+  LUNAR_HIJRI
+}
+
+/// رکورد کتاب‌شناختی. یک «عنوان» — نه یک جلد فیزیکی.
+/// کتاب چندجلدی: هر جلد یک Book مستقل با `parentBookId` و `volumeNumber`.
+model Book {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title          String   @db.VarChar(400)
+  subtitle       String?  @db.VarChar(400)
+  titleEn        String?  @db.VarChar(400)
+  /// عنوان اصلی اثر در زبان مبدأ (برای کتاب‌های ترجمه‌شده)
+  originalTitle  String?  @db.VarChar(400)
+
+  /// ستون‌های جستجو — با Trigger پر می‌شوند. هرگز دستی ننویسید.
+  titleNormalized String  @default("") @db.VarChar(400)
+  searchVector    Unsupported("tsvector")?
+
+  publisherId    String?  @db.Uuid
+  publicationPlace String? @db.VarChar(120)
+  publicationYear  Int?
+  publicationCalendar CalendarType @default(SOLAR_HIJRI)
+  edition        Int?     // نوبت چاپ
+  editionNote    String?  @db.VarChar(200)
+
+  isbn13         String?  @db.VarChar(13)  // شکل متعارف — کلید تشخیص تکراری
+  isbnRaw        String?  @db.VarChar(40)  // آنچه کاربر وارد کرده
+  issn           String?  @db.VarChar(20)
+  /// شماره کتابشناسی ملی
+  nationalBibNumber String? @db.VarChar(40)
+
+  language       String   @default("fa") @db.VarChar(12)
+  pageCount      Int?
+  format         BookFormat?
+  bindingType    BindingType?
+
+  summary        String?  @db.Text
+  description    String?  @db.Text
+  keywords       String[] @default([])
+  ageRating      String?  @db.VarChar(40)
+  deweyCode      String?  @db.VarChar(40)   // رده دیویی
+  congressCode   String?  @db.VarChar(40)   // رده کنگره
+
+  seriesId       String?  @db.Uuid
+  seriesOrder    Int?
+
+  /// چندجلدی: ارجاع به رکورد والد (اثر کلی)
+  parentBookId   String?  @db.Uuid
+  volumeNumber   Int?
+  volumeTitle    String?  @db.VarChar(300)
+  totalVolumes   Int?
+
+  coverImageId   String?  @db.Uuid
+  internalNote   String?  @db.Text
+
+  createdById    String?  @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(3)
+  deletedAt      DateTime? @db.Timestamptz(3)
+
+  publisher    Publisher?        @relation(fields: [publisherId], references: [id], onDelete: SetNull)
+  series       Series?           @relation(fields: [seriesId], references: [id], onDelete: SetNull)
+  parentBook   Book?             @relation("BookVolumes", fields: [parentBookId], references: [id], onDelete: Restrict)
+  volumes      Book[]            @relation("BookVolumes")
+  contributors BookContributor[]
+  categories   BookCategory[]
+  tags         BookTag[]
+  copies       BookCopy[]
+  reservations Reservation[]
+
+  @@index([deletedAt])
+  @@index([publisherId])
+  @@index([seriesId])
+  @@index([parentBookId])
+  @@index([isbn13])
+  @@index([createdAt(sort: Desc)])
+  @@index([publicationYear])
+  @@index([language])
+  @@map("books")
+}
+
+enum ContributorRole {
+  AUTHOR
+  CO_AUTHOR
+  TRANSLATOR
+  EDITOR
+  COMPILER
+  ILLUSTRATOR
+  INTRODUCER
+  RESEARCHER
+  NARRATOR
+  CALLIGRAPHER
+}
+
+model BookContributor {
+  id       String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bookId   String          @db.Uuid
+  personId String          @db.Uuid
+  role     ContributorRole
+  /// ترتیب نمایش (نویسنده اول، دوم، ...)
+  position Int             @default(0)
+
+  book   Book   @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  person Person @relation(fields: [personId], references: [id], onDelete: Restrict)
+
+  @@unique([bookId, personId, role])
+  @@index([personId, role])
+  @@index([bookId])
+  @@map("book_contributors")
+}
+
+model BookCategory {
+  bookId     String  @db.Uuid
+  categoryId String  @db.Uuid
+  /// دقیقاً یکی از دسته‌های هر کتاب باید `isPrimary` باشد (موضوع اصلی)
+  isPrimary  Boolean @default(false)
+
+  book     Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  @@id([bookId, categoryId])
+  @@index([categoryId])
+  @@map("book_categories")
+}
+
+model BookTag {
+  bookId String @db.Uuid
+  tagId  String @db.Uuid
+
+  book Book @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([bookId, tagId])
+  @@index([tagId])
+  @@map("book_tags")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  مکان‌ها (درخت یکپارچه — ADR-03)
+// ═══════════════════════════════════════════════════════════════════════════
+
+enum LocationKind {
+  BUILDING
+  FLOOR
+  SECTION
+  ROOM
+  AISLE
+  SHELF
+  SHELF_LEVEL
+  POSITION
+}
+
+model Location {
+  id       String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  branchId String       @db.Uuid
+  parentId String?      @db.Uuid
+  kind     LocationKind
+  name     String       @db.VarChar(160)
+  nameNormalized String  @default("") @db.VarChar(160)
+  /// کد این گره به‌تنهایی: `SH12`
+  code     String       @db.VarChar(40)
+  /// کد کامل زنجیره: `B1-F1-S2-A03-SH12-L04` — روی برچسب چاپ می‌شود
+  fullCode String       @db.VarChar(300)
+  /// Materialized Path برای کوئری زیردرخت
+  path     String       @default("") @db.VarChar(1000)
+  depth    Int          @default(0)
+  sortOrder Int         @default(0)
+  /// ظرفیت (فقط برای SHELF و SHELF_LEVEL معنی دارد)
+  capacity Int?
+  /// شناسه امن برای QR Code قفسه
+  qrToken  String       @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  note     String?      @db.Text
+  isActive Boolean      @default(true)
+  createdAt DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime    @updatedAt @db.Timestamptz(3)
+  deletedAt DateTime?   @db.Timestamptz(3)
+
+  branch       Branch         @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  parent       Location?      @relation("LocationTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children     Location[]     @relation("LocationTree")
+  copies       BookCopy[]
+  movementsFrom BookMovement[] @relation("MovementFrom")
+  movementsTo   BookMovement[] @relation("MovementTo")
+  inventorySessions InventorySession[]
+  inventoryScans    InventoryScan[]
+
+  @@unique([branchId, fullCode])
+  @@index([path])
+  @@index([parentId])
+  @@index([branchId, kind])
+  @@index([deletedAt])
+  @@map("locations")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  نسخه‌های فیزیکی
+// ═══════════════════════════════════════════════════════════════════════════
+
+enum CopyStatus {
+  AVAILABLE
+  ON_LOAN
+  RESERVED_HOLD
+  LOST
+  DAMAGED
+  IN_REPAIR
+  IN_TRANSIT
+  NOT_LOANABLE
+  ARCHIVED
+  WITHDRAWN
+}
+
+enum CopyCondition {
+  NEW
+  GOOD
+  FAIR
+  POOR
+}
+
+enum AcquisitionSource {
+  PURCHASE
+  DONATION
+  TRANSFER
+  EXCHANGE
+  LEGAL_DEPOSIT
+  INTER_LIBRARY
+  OTHER
+}
+
+/// یک جلد فیزیکی روی قفسه. تنها موجودیتی که امانت داده می‌شود.
+model BookCopy {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bookId   String @db.Uuid
+  branchId String @db.Uuid
+
+  /// شماره نسخه در میان نسخه‌های همان عنوان: 1, 2, 3 (نمایش: 001, 002)
+  copyNumber       Int
+  /// شماره ثبت — یکتا در هر شعبه
+  accessionNumber  String  @db.VarChar(60)
+  /// کد داخلی کتابخانه (اختیاری، مثلاً BK-000123)
+  libraryCode      String? @db.VarChar(60)
+  /// شماره اموال سازمانی (اختیاری)
+  assetNumber      String? @db.VarChar(60)
+  /// بارکد — یکتا در کل سیستم
+  barcode          String  @db.VarChar(60)
+  /// شناسه امن برای QR — شناسه داخلی رکورد را افشا نمی‌کند
+  qrToken          String  @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  status     CopyStatus    @default(AVAILABLE)
+  condition  CopyCondition @default(GOOD)
+  /// نسخه مرجع/مرجع‌گونه که هرگز امانت داده نمی‌شود
+  isLoanable Boolean       @default(true)
+  isReference Boolean      @default(false)
+
+  locationId   String? @db.Uuid
+  /// خانه دقیق روی طبقه قفسه، مثلاً «08»
+  positionCode String? @db.VarChar(20)
+
+  acquisitionSource AcquisitionSource @default(PURCHASE)
+  acquiredAt        DateTime?         @db.Date
+  donorId           String?           @db.Uuid
+  supplier          String?           @db.VarChar(200)
+  purchasePrice     Decimal?          @db.Decimal(14, 2)
+  currentValue      Decimal?          @db.Decimal(14, 2)
+
+  internalNote String?  @db.Text
+  createdById  String?  @db.Uuid
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(3)
+  deletedAt    DateTime? @db.Timestamptz(3)
+
+  book          Book           @relation(fields: [bookId], references: [id], onDelete: Restrict)
+  branch        Branch         @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  location      Location?      @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  donor         Donor?         @relation(fields: [donorId], references: [id], onDelete: SetNull)
+  loans         Loan[]
+  movements     BookMovement[]
+  inventoryScans InventoryScan[]
+  lostReports   LostReport[]
+  reservations  Reservation[]  @relation("ReservationHoldCopy")
+  transfers     Transfer[]
+
+  @@unique([barcode])
+  @@unique([branchId, accessionNumber])
+  @@unique([bookId, copyNumber])
+  @@index([bookId])
+  @@index([status])
+  @@index([locationId])
+  @@index([branchId, status])
+  @@index([deletedAt])
+  @@index([createdAt(sort: Desc)])
+  @@index([assetNumber])
+  @@index([libraryCode])
+  @@map("book_copies")
+}
+
+/// تاریخچه جابه‌جایی نسخه بین قفسه‌ها. هرگز حذف نمی‌شود.
+model BookMovement {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  copyId         String   @db.Uuid
+  fromLocationId String?  @db.Uuid
+  toLocationId   String?  @db.Uuid
+  fromPosition   String?  @db.VarChar(20)
+  toPosition     String?  @db.VarChar(20)
+  reason         String?  @db.VarChar(300)
+  movedById      String?  @db.Uuid
+  movedAt        DateTime @default(now()) @db.Timestamptz(3)
+
+  copy         BookCopy  @relation(fields: [copyId], references: [id], onDelete: Cascade)
+  fromLocation Location? @relation("MovementFrom", fields: [fromLocationId], references: [id], onDelete: SetNull)
+  toLocation   Location? @relation("MovementTo", fields: [toLocationId], references: [id], onDelete: SetNull)
+
+  @@index([copyId, movedAt(sort: Desc)])
+  @@index([movedAt(sort: Desc)])
+  @@map("book_movements")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  اعضا
+// ═══════════════════════════════════════════════════════════════════════════
+
+enum MemberStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  EXPIRED
+  BLOCKED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  UNSPECIFIED
+}
+
+/// نوع عضویت — قوانین امانت را برای گروهی از اعضا بازنویسی می‌کند.
+/// مقدار `null` در هر فیلد یعنی «از تنظیمات عمومی کتابخانه استفاده کن».
+model MembershipType {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String   @unique @db.VarChar(120)
+  description    String?  @db.Text
+  maxLoans       Int?
+  loanDays       Int?
+  maxRenewals    Int?
+  maxReservations Int?
+  dailyFineAmount Decimal? @db.Decimal(14, 2)
+  durationDays   Int?
+  canReserve     Boolean  @default(true)
+  isDefault      Boolean  @default(false)
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(3)
+
+  members Member[]
+
+  @@map("membership_types")
+}
+
+model Member {
+  id         String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  branchId   String @db.Uuid
+  memberCode String @unique @db.VarChar(40)
+
+  firstName String @db.VarChar(100)
+  lastName  String @db.VarChar(120)
+  /// نام کامل نرمال‌شده برای جستجو — با Trigger پر می‌شود
+  nameNormalized String @default("") @db.VarChar(240)
+
+  nationalId String?   @unique @db.VarChar(20)
+  phone      String?   @db.VarChar(40)
+  mobile     String?   @db.VarChar(40)
+  email      String?   @db.VarChar(160)
+  address    String?   @db.Text
+  postalCode String?   @db.VarChar(20)
+  birthDate  DateTime? @db.Date
+  gender     Gender    @default(UNSPECIFIED)
+  photoId    String?   @db.Uuid
+
+  membershipTypeId String?      @db.Uuid
+  status           MemberStatus @default(ACTIVE)
+  joinedAt         DateTime     @default(now()) @db.Timestamptz(3)
+  expiresAt        DateTime?    @db.Timestamptz(3)
+
+  referrerName          String? @db.VarChar(200)
+  emergencyContactName  String? @db.VarChar(200)
+  emergencyContactPhone String? @db.VarChar(40)
+  note                  String? @db.Text
+
+  /// شناسه امن برای بارکد/QR کارت عضویت
+  qrToken String @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  createdById String?   @db.Uuid
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(3)
+  deletedAt   DateTime? @db.Timestamptz(3)
+
+  branch         Branch          @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  membershipType MembershipType? @relation(fields: [membershipTypeId], references: [id], onDelete: SetNull)
+  loans          Loan[]
+  reservations   Reservation[]
+  fines          Fine[]
+  lostReports    LostReport[]
+  notifications  Notification[]
+
+  @@index([status])
+  @@index([expiresAt])
+  @@index([deletedAt])
+  @@index([branchId, status])
+  @@index([createdAt(sort: Desc)])
+  @@map("members")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  امانت
+// ═══════════════════════════════════════════════════════════════════════════
+
+enum LoanStatus {
+  ACTIVE
+  OVERDUE
+  RETURNED
+  LOST
+  CLAIMED_RETURNED
+}
+
+/// یک امانت = یک نسخه فیزیکی.
+/// امانت گروهی چند کتاب با `checkoutBatchId` مشترک گروه‌بندی می‌شود — این کار
+/// کوئری «تاریخچه این کتاب» و کنترل همروندی را ساده‌تر از مدل Loan/LoanItem می‌کند.
+model Loan {
+  id         String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  loanNumber String     @unique @db.VarChar(40)
+  branchId   String     @db.Uuid
+  memberId   String     @db.Uuid
+  copyId     String     @db.Uuid
+  status     LoanStatus @default(ACTIVE)
+
+  loanedAt    DateTime  @default(now()) @db.Timestamptz(3)
+  dueAt       DateTime  @db.Timestamptz(3)
+  /// موعد اولیه پیش از تمدیدها — برای گزارش‌گیری
+  originalDueAt DateTime @db.Timestamptz(3)
+  returnedAt  DateTime? @db.Timestamptz(3)
+  renewalCount Int      @default(0)
+  lastRenewedAt DateTime? @db.Timestamptz(3)
+
+  /// شناسه گروه برای امانت هم‌زمان چند کتاب به یک عضو
+  checkoutBatchId String? @db.Uuid
+
+  loanedById   String? @db.Uuid
+  returnedById String? @db.Uuid
+  note         String? @db.Text
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  branch Branch   @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  member Member   @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  copy   BookCopy @relation(fields: [copyId], references: [id], onDelete: Restrict)
+  fines  Fine[]
+  lostReports LostReport[]
+  fulfilledReservation Reservation? @relation("ReservationFulfilledBy")
+
+  @@index([memberId, status])
+  @@index([copyId, status])
+  @@index([status, dueAt])
+  @@index([loanedAt(sort: Desc)])
+  @@index([branchId, loanedAt])
+  @@index([returnedAt])
+  @@index([checkoutBatchId])
+  @@map("loans")
+}
+
+enum ReservationStatus {
+  PENDING
+  READY
+  FULFILLED
+  CANCELLED
+  EXPIRED
+}
+
+/// رزرو در سطح **عنوان** انجام می‌شود — عضو یک کتاب می‌خواهد، نه نسخه خاص.
+/// وقتی نسخه‌ای آزاد شد، به اولین نفر صف اختصاص و وضعیت READY می‌شود.
+model Reservation {
+  id       String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bookId   String            @db.Uuid
+  memberId String            @db.Uuid
+  status   ReservationStatus @default(PENDING)
+  /// جایگاه در صف انتظار (۱ = نفر اول)
+  queuePosition Int          @default(1)
+  priority      Int          @default(0)
+
+  reservedAt DateTime  @default(now()) @db.Timestamptz(3)
+  /// زمانی که نسخه‌ای برای این رزرو کنار گذاشته شد
+  readyAt    DateTime? @db.Timestamptz(3)
+  /// مهلت مراجعه عضو پس از آماده شدن
+  expiresAt  DateTime? @db.Timestamptz(3)
+  notifiedAt DateTime? @db.Timestamptz(3)
+  cancelledAt DateTime? @db.Timestamptz(3)
+
+  /// نسخه‌ای که برای این رزرو کنار گذاشته شده
+  holdCopyId String? @db.Uuid
+  /// امانتی که این رزرو را محقق کرد
+  fulfilledLoanId String? @unique @db.Uuid
+
+  createdById String? @db.Uuid
+  note        String? @db.Text
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+
+  book           Book      @relation(fields: [bookId], references: [id], onDelete: Restrict)
+  member         Member    @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  holdCopy       BookCopy? @relation("ReservationHoldCopy", fields: [holdCopyId], references: [id], onDelete: SetNull)
+  fulfilledLoan  Loan?     @relation("ReservationFulfilledBy", fields: [fulfilledLoanId], references: [id], onDelete: SetNull)
+
+  @@index([bookId, status, queuePosition])
+  @@index([memberId, status])
+  @@index([status, expiresAt])
+  @@map("reservations")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  جریمه و پرداخت
+// ═══════════════════════════════════════════════════════════════════════════
+
+enum FineType {
+  LATE_RETURN
+  DAMAGE
+  LOST
+  REPLACEMENT
+  MEMBERSHIP
+  OTHER
+}
+
+enum FineStatus {
+  UNPAID
+  PARTIALLY_PAID
+  PAID
+  WAIVED
+}
+
+model Fine {
+  id       String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  memberId String     @db.Uuid
+  loanId   String?    @db.Uuid
+  type     FineType
+  status   FineStatus @default(UNPAID)
+
+  amount    Decimal @db.Decimal(14, 2)
+  /// جمع پرداخت‌های ثبت‌شده — با هر پرداخت داخل تراکنش به‌روز می‌شود
+  paidAmount Decimal @default(0) @db.Decimal(14, 2)
+  currency  String  @default("IRT") @db.VarChar(8)
+
+  reason String  @db.VarChar(400)
+  note   String? @db.Text
+  /// روزهای دیرکردی که مبنای محاسبه بوده (برای شفافیت در گزارش)
+  overdueDays Int?
+
+  issuedAt DateTime  @default(now()) @db.Timestamptz(3)
+  dueAt    DateTime? @db.Timestamptz(3)
+  settledAt DateTime? @db.Timestamptz(3)
+
+  waivedById  String? @db.Uuid
+  waiveReason String? @db.VarChar(400)
+  createdById String? @db.Uuid
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+
+  member   Member    @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  loan     Loan?     @relation(fields: [loanId], references: [id], onDelete: Restrict)
+  payments Payment[]
+
+  @@index([memberId, status])
+  @@index([loanId])
+  @@index([status])
+  @@index([issuedAt(sort: Desc)])
+  @@map("fines")
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  TRANSFER
+  ONLINE
+}
+
+model Payment {
+  id       String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  fineId   String        @db.Uuid
+  amount   Decimal       @db.Decimal(14, 2)
+  method   PaymentMethod @default(CASH)
+  reference String?      @db.VarChar(120)
+  paidAt   DateTime      @default(now()) @db.Timestamptz(3)
+  receivedById String?   @db.Uuid
+  note     String?       @db.Text
+  createdAt DateTime     @default(now()) @db.Timestamptz(3)
+
+  fine Fine @relation(fields: [fineId], references: [id], onDelete: Restrict)
+
+  @@index([fineId])
+  @@index([paidAt(sort: Desc)])
+  @@map("payments")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  مفقودی
+// ═══════════════════════════════════════════════════════════════════════════
+
+enum LostReportStatus {
+  OPEN
+  CHARGED
+  REPLACED
+  WRITTEN_OFF
+  FOUND
+  CLOSED
+}
+
+model LostReport {
+  id       String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  copyId   String           @db.Uuid
+  loanId   String?          @db.Uuid
+  memberId String?          @db.Uuid
+  status   LostReportStatus @default(OPEN)
+
+  reportedAt     DateTime  @default(now()) @db.Timestamptz(3)
+  assessedAmount Decimal?  @db.Decimal(14, 2)
+  replacementCopyId String? @db.Uuid
+  closedAt       DateTime? @db.Timestamptz(3)
+  description    String?   @db.Text
+
+  reportedById String?  @db.Uuid
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(3)
+
+  copy   BookCopy @relation(fields: [copyId], references: [id], onDelete: Restrict)
+  loan   Loan?    @relation(fields: [loanId], references: [id], onDelete: Restrict)
+  member Member?  @relation(fields: [memberId], references: [id], onDelete: Restrict)
+
+  @@index([copyId])
+  @@index([status])
+  @@index([memberId])
+  @@map("lost_reports")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  شمارش موجودی
+// ═══════════════════════════════════════════════════════════════════════════
+
+enum InventorySessionStatus {
+  DRAFT
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum InventoryScanResult {
+  FOUND
+  MOVED
+  UNEXPECTED
+  UNKNOWN
+  DUPLICATE
+}
+
+model InventorySession {
+  id       String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  branchId String                 @db.Uuid
+  name     String                 @db.VarChar(200)
+  status   InventorySessionStatus @default(DRAFT)
+  /// محدوده شمارش: یک گره از درخت مکان (کل زیردرخت آن شمرده می‌شود)
+  scopeLocationId String? @db.Uuid
+
+  expectedCount Int @default(0)
+  scannedCount  Int @default(0)
+  foundCount    Int @default(0)
+  missingCount  Int @default(0)
+  movedCount    Int @default(0)
+  unexpectedCount Int @default(0)
+
+  startedAt   DateTime? @db.Timestamptz(3)
+  completedAt DateTime? @db.Timestamptz(3)
+  startedById String?   @db.Uuid
+  note        String?   @db.Text
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(3)
+
+  branch        Branch          @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  scopeLocation Location?       @relation(fields: [scopeLocationId], references: [id], onDelete: SetNull)
+  scans         InventoryScan[]
+
+  @@index([branchId, status])
+  @@index([createdAt(sort: Desc)])
+  @@map("inventory_sessions")
+}
+
+model InventoryScan {
+  id        String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionId String              @db.Uuid
+  barcode   String              @db.VarChar(60)
+  copyId    String?             @db.Uuid
+  result    InventoryScanResult
+  /// مکانی که نسخه در آن اسکن شد (برای تشخیص جابه‌جایی)
+  foundLocationId String? @db.Uuid
+  scannedAt   DateTime @default(now()) @db.Timestamptz(3)
+  scannedById String?  @db.Uuid
+
+  session       InventorySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  copy          BookCopy?        @relation(fields: [copyId], references: [id], onDelete: SetNull)
+  foundLocation Location?        @relation(fields: [foundLocationId], references: [id], onDelete: SetNull)
+
+  @@unique([sessionId, barcode])
+  @@index([sessionId, result])
+  @@index([copyId])
+  @@map("inventory_scans")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  انتقال بین شعب
+// ═══════════════════════════════════════════════════════════════════════════
+
+enum TransferStatus {
+  REQUESTED
+  APPROVED
+  IN_TRANSIT
+  RECEIVED
+  CANCELLED
+}
+
+model Transfer {
+  id           String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  copyId       String         @db.Uuid
+  fromBranchId String         @db.Uuid
+  toBranchId   String         @db.Uuid
+  status       TransferStatus @default(REQUESTED)
+
+  requestedAt  DateTime  @default(now()) @db.Timestamptz(3)
+  approvedAt   DateTime? @db.Timestamptz(3)
+  dispatchedAt DateTime? @db.Timestamptz(3)
+  receivedAt   DateTime? @db.Timestamptz(3)
+  cancelledAt  DateTime? @db.Timestamptz(3)
+
+  requestedById String? @db.Uuid
+  approvedById  String? @db.Uuid
+  receivedById  String? @db.Uuid
+  note          String? @db.Text
+
+  copy       BookCopy @relation(fields: [copyId], references: [id], onDelete: Restrict)
+  fromBranch Branch   @relation("TransferFrom", fields: [fromBranchId], references: [id], onDelete: Restrict)
+  toBranch   Branch   @relation("TransferTo", fields: [toBranchId], references: [id], onDelete: Restrict)
+
+  @@index([copyId])
+  @@index([status])
+  @@map("transfers")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  فایل‌ها و یادداشت‌ها
+// ═══════════════════════════════════════════════════════════════════════════
+
+enum AttachmentKind {
+  COVER
+  IMAGE
+  PDF
+  DOCUMENT
+  AVATAR
+  OTHER
+}
+
+/// پیوست چندریختی (Polymorphic). عمداً بدون Foreign Key چون به موجودیت‌های
+/// مختلف وصل می‌شود؛ یکپارچگی در لایه سرویس تضمین می‌شود.
+model Attachment {
+  id         String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  entityType String         @db.VarChar(40)
+  entityId   String?        @db.Uuid
+  kind       AttachmentKind @default(OTHER)
+
+  storageKey   String  @unique @db.VarChar(400)
+  thumbnailKey String? @db.VarChar(400)
+  originalName String  @db.VarChar(300)
+  mimeType     String  @db.VarChar(120)
+  sizeBytes    Int
+  checksum     String? @db.VarChar(80)
+  width        Int?
+  height       Int?
+
+  uploadedById String?   @db.Uuid
+  createdAt    DateTime  @default(now()) @db.Timestamptz(3)
+  deletedAt    DateTime? @db.Timestamptz(3)
+
+  @@index([entityType, entityId])
+  @@index([deletedAt])
+  @@map("attachments")
+}
+
+model Note {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  entityType String   @db.VarChar(40)
+  entityId   String   @db.Uuid
+  body       String   @db.Text
+  /// یادداشت داخلی هرگز در OPAC عمومی نمایش داده نمی‌شود
+  isInternal Boolean  @default(true)
+  createdById String? @db.Uuid
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(3)
+  deletedAt  DateTime? @db.Timestamptz(3)
+
+  @@index([entityType, entityId, createdAt(sort: Desc)])
+  @@map("notes")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  سیستم
+// ═══════════════════════════════════════════════════════════════════════════
+
+model Setting {
+  key         String   @id @db.VarChar(80)
+  value       Json
+  group       String   @db.VarChar(40)
+  /// تنظیمات عمومی بدون احراز هویت قابل خواندن‌اند (مثل نام کتابخانه در صفحه ورود)
+  isPublic    Boolean  @default(false)
+  updatedById String?  @db.Uuid
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([group])
+  @@map("settings")
+}
+
+enum NumberingTarget {
+  ACCESSION
+  BARCODE
+  LIBRARY_CODE
+  ASSET
+  MEMBER_CODE
+  LOAN_NUMBER
+}
+
+enum NumberingReset {
+  NEVER
+  YEARLY
+  MONTHLY
+}
+
+/// قانون تولید شماره. `currentSequence` فقط داخل تراکنش با `SELECT FOR UPDATE`
+/// افزایش می‌یابد تا شماره تکراری غیرممکن شود (ADR-06).
+model NumberingRule {
+  id       String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key      String          @unique @db.VarChar(40)
+  name     String          @db.VarChar(120)
+  target   NumberingTarget
+  pattern  String          @db.VarChar(80)
+  prefix   String?         @db.VarChar(20)
+  currentSequence Int      @default(0)
+  resetPolicy NumberingReset @default(NEVER)
+  /// دوره جاری برای Reset — مثلاً "1405" یا "1405-03"
+  currentPeriod String?    @db.VarChar(20)
+  isActive Boolean         @default(true)
+  createdAt DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime       @updatedAt @db.Timestamptz(3)
+
+  @@map("numbering_rules")
+}
+
+/// ثبت کامل فعالیت کاربران. فقط افزودنی — هرگز ویرایش یا حذف نمی‌شود.
+model AuditLog {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String?  @db.Uuid
+  /// نام کاربر در لحظه ثبت — اگر بعداً کاربر حذف شود، لاگ خوانا می‌ماند
+  userLabel  String?  @db.VarChar(160)
+  action     String   @db.VarChar(60)
+  entityType String   @db.VarChar(40)
+  entityId   String?  @db.VarChar(80)
+  /// خلاصه خوانا برای نمایش: «کتاب دیوان حافظ»
+  entityLabel String? @db.VarChar(300)
+  oldData    Json?
+  newData    Json?
+  ip         String?  @db.VarChar(60)
+  userAgent  String?  @db.VarChar(400)
+  requestId  String?  @db.VarChar(60)
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+  @@index([action])
+  @@map("audit_logs")
+}
+
+enum NotificationChannel {
+  IN_APP
+  SMS
+  EMAIL
+  TELEGRAM
+  WHATSAPP
+}
+
+enum NotificationType {
+  DUE_SOON
+  OVERDUE
+  RESERVATION_READY
+  MEMBERSHIP_EXPIRING
+  FINE_ISSUED
+  LOST_BOOK
+  SYSTEM
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  READ
+  CANCELLED
+}
+
+model Notification {
+  id       String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  memberId String?             @db.Uuid
+  userId   String?             @db.Uuid
+  channel  NotificationChannel @default(IN_APP)
+  type     NotificationType
+  status   NotificationStatus  @default(PENDING)
+
+  title   String  @db.VarChar(200)
+  body    String  @db.Text
+  /// داده ساختاریافته برای Deep Link در UI: { loanId, bookId, ... }
+  payload Json    @default("{}")
+
+  scheduledFor DateTime? @db.Timestamptz(3)
+  sentAt       DateTime? @db.Timestamptz(3)
+  readAt       DateTime? @db.Timestamptz(3)
+  attempts     Int       @default(0)
+  lastError    String?   @db.Text
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  member Member? @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([memberId, status])
+  @@index([userId, status])
+  @@index([status, scheduledFor])
+  @@index([createdAt(sort: Desc)])
+  @@map("notifications")
+}
+
+model NotificationTemplate {
+  id        String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key       String              @db.VarChar(60)
+  channel   NotificationChannel
+  type      NotificationType
+  subject   String?             @db.VarChar(200)
+  /// متن با متغیرهای {{memberName}}، {{bookTitle}}، {{dueDate}} و ...
+  body      String              @db.Text
+  isActive  Boolean             @default(true)
+  createdAt DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime            @updatedAt @db.Timestamptz(3)
+
+  @@unique([key, channel])
+  @@map("notification_templates")
+}
+
+enum JobKind {
+  IMPORT
+  EXPORT
+  BACKUP
+  RESTORE
+  REPORT
+  MAINTENANCE
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+/// Jobهای پس‌زمینه‌ای که کاربر باید وضعیتشان را ببیند (Export، Backup، Import).
+/// صف واقعی BullMQ است؛ این جدول فقط نمای قابل مشاهده و پایدار آن است.
+model JobRecord {
+  id       String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  kind     JobKind
+  status   JobStatus @default(PENDING)
+  title    String    @db.VarChar(200)
+  /// شناسه Job در BullMQ برای پیگیری
+  queueJobId String? @db.VarChar(80)
+  progress Int       @default(0)
+  params   Json      @default("{}")
+  result   Json?
+  /// کلید فایل خروجی در Storage (برای دانلود)
+  resultFileKey String? @db.VarChar(400)
+  error    String?   @db.Text
+
+  createdById String?   @db.Uuid
+  startedAt   DateTime? @db.Timestamptz(3)
+  finishedAt  DateTime? @db.Timestamptz(3)
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(3)
+
+  @@index([kind, status])
+  @@index([createdById, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+  @@map("job_records")
+}
+
+enum ImportType {
+  BOOKS
+  MEMBERS
+  COPIES
+}
+
+enum ImportStatus {
+  UPLOADED
+  MAPPING
+  VALIDATED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model ImportJob {
+  id       String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  type     ImportType
+  status   ImportStatus @default(UPLOADED)
+  fileKey  String       @db.VarChar(400)
+  originalName String   @db.VarChar(300)
+
+  /// نگاشت ستون فایل به فیلد سیستم: { "عنوان": "title", "نویسنده": "author" }
+  mapping  Json  @default("{}")
+  /// گزینه‌ها: { skipDuplicates, createMissingAuthors, defaultLocationId, ... }
+  options  Json  @default("{}")
+  /// سرستون‌های شناسایی‌شده از فایل
+  headers  String[] @default([])
+
+  totalRows     Int @default(0)
+  processedRows Int @default(0)
+  successRows   Int @default(0)
+  errorRows     Int @default(0)
+  duplicateRows Int @default(0)
+
+  createdById String?   @db.Uuid
+  startedAt   DateTime? @db.Timestamptz(3)
+  finishedAt  DateTime? @db.Timestamptz(3)
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(3)
+
+  errors ImportError[]
+
+  @@index([status])
+  @@index([createdAt(sort: Desc)])
+  @@map("import_jobs")
+}
+
+model ImportError {
+  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  jobId     String @db.Uuid
+  rowNumber Int
+  column    String? @db.VarChar(120)
+  message   String  @db.VarChar(500)
+  rawRow    Json?
+
+  job ImportJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId, rowNumber])
+  @@map("import_errors")
+}
+
+enum BackupType {
+  FULL
+  DATABASE
+  FILES
+}
+
+enum BackupTrigger {
+  MANUAL
+  SCHEDULE
+}
+
+model BackupRecord {
+  id       String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  type     BackupType    @default(FULL)
+  status   JobStatus     @default(PENDING)
+  trigger  BackupTrigger @default(MANUAL)
+  fileKey  String?       @db.VarChar(400)
+  fileName String?       @db.VarChar(300)
+  sizeBytes BigInt?
+  checksum String?       @db.VarChar(80)
+  /// نسخه Schema در لحظه پشتیبان‌گیری — برای بررسی سازگاری هنگام بازیابی
+  schemaVersion String?  @db.VarChar(80)
+  error    String?       @db.Text
+
+  createdById String?   @db.Uuid
+  startedAt   DateTime? @db.Timestamptz(3)
+  finishedAt  DateTime? @db.Timestamptz(3)
+  retentionUntil DateTime? @db.Timestamptz(3)
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@index([status])
+  @@index([createdAt(sort: Desc)])
+  @@map("backup_records")
+}
+
+/// فیلترهای پرتکرار ذخیره‌شده کاربر — مثل «کتاب‌های دیرکرددار»
+model SavedFilter {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String   @db.Uuid
+  name       String   @db.VarChar(120)
+  entityType String   @db.VarChar(40)
+  query      Json
+  isShared   Boolean  @default(false)
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, entityType, name])
+  @@index([entityType, isShared])
+  @@map("saved_filters")
+}
