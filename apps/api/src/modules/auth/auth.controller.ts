@@ -47,7 +47,7 @@ export class AuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   // محدودیت سخت‌گیرانه‌تر از بقیه API — دفاع در برابر حدس رمز عبور
-  @Throttle({ login: { limit: 10, ttl: 60_000 } })
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @ApiOperation({ summary: 'ورود به سامانه' })
   async login(
     @Body(zodBody(LoginSchema)) body: z.infer<typeof LoginSchema>,

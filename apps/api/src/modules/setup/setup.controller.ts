@@ -56,7 +56,7 @@ export class SetupController {
   @Post('complete')
   // این Endpoint فقط یک بار در عمر سامانه کار می‌کند، اما تا آن لحظه باز است؛
   // محدودیت نرخ سخت‌گیرانه جلوی تلاش خودکار برای ساخت مدیر را می‌گیرد.
-  @Throttle({ login: { limit: 5, ttl: 300_000 } })
+  @Throttle({ default: { limit: 5, ttl: 300_000 } })
   @ApiOperation({ summary: 'تکمیل راه‌اندازی و ساخت حساب مدیر ارشد' })
   complete(
     @Body(zodBody(CompleteSetupSchema)) body: z.infer<typeof CompleteSetupSchema>,

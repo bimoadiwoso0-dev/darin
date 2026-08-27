@@ -13,7 +13,15 @@ import { InfrastructureModule } from './infrastructure/infrastructure.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
+import { BackupModule } from './modules/backup/backup.module';
 import { CirculationModule } from './modules/circulation/circulation.module';
+import { ExportsModule } from './modules/exports/exports.module';
+import { ImportsModule } from './modules/imports/imports.module';
+import { InventoryModule } from './modules/inventory/inventory.module';
+import { LabelsModule } from './modules/labels/labels.module';
+import { MaintenanceModule } from './modules/maintenance/maintenance.module';
+import { ReportsModule } from './modules/reports/reports.module';
+import { SearchModule } from './modules/search/search.module';
 import { HoldingsModule } from './modules/holdings/holdings.module';
 import { LocationsModule } from './modules/locations/locations.module';
 import { MembersModule } from './modules/members/members.module';
@@ -62,21 +70,29 @@ import { SetupModule } from './modules/setup/setup.module';
       }),
     }),
 
+    /**
+     * محدودیت نرخ درخواست.
+     *
+     * فقط **یک** محدودکننده سراسری تعریف می‌شود. علت: NestJS Throttler هر
+     * محدودکننده نام‌دار را روی **همه** مسیرها اعمال می‌کند، نه فقط جایی که
+     * صدا زده شده. تعریف یک محدودکننده دوم به‌نام `login` با سقف ۱۰،
+     * عملاً کل API را به ۱۰ درخواست در دقیقه محدود می‌کرد.
+     *
+     * مسیرهای حساس (ورود، Setup) با
+     * `@Throttle({ default: { limit, ttl } })` سقف سخت‌گیرانه‌تر خودشان را
+     * روی همین محدودکننده بازنویسی می‌کنند.
+     */
     ThrottlerModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => [
-        {
-          name: 'default',
-          ttl: config.get<number>('RATE_LIMIT_TTL', 60) * 1000,
-          limit: config.get<number>('RATE_LIMIT_MAX', 300),
-        },
-        {
-          // نام‌دار تا فقط Endpoint های حساس (@Throttle({ login: ... })) از آن استفاده کنند
-          name: 'login',
-          ttl: 60_000,
-          limit: config.get<number>('RATE_LIMIT_LOGIN_MAX', 10),
-        },
-      ],
+      useFactory: (config: ConfigService) => ({
+        throttlers: [
+          {
+            name: 'default',
+            ttl: config.get<number>('RATE_LIMIT_TTL', 60) * 1000,
+            limit: config.get<number>('RATE_LIMIT_MAX', 300),
+          },
+        ],
+      }),
     }),
 
     ScheduleModule.forRoot(),
@@ -95,6 +111,14 @@ import { SetupModule } from './modules/setup/setup.module';
     HoldingsModule,
     MembersModule,
     CirculationModule,
+    SearchModule,
+    ReportsModule,
+    ExportsModule,
+    InventoryModule,
+    ImportsModule,
+    LabelsModule,
+    BackupModule,
+    MaintenanceModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
