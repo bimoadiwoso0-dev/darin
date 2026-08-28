@@ -8,9 +8,8 @@
 /** تبدیل میلادی به شمسی — الگوریتم بدون وابستگی به کتابخانه بیرونی. */
 export function gregorianToJalali(gy: number, gm: number, gd: number): [number, number, number] {
   const gDaysInMonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-  const jDaysInMonth = [31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29];
 
-  let gy2 = gm > 2 ? gy + 1 : gy;
+  const gy2 = gm > 2 ? gy + 1 : gy;
   let days =
     355666 +
     365 * gy +
@@ -29,29 +28,35 @@ export function gregorianToJalali(gy: number, gm: number, gd: number): [number, 
     days = (days - 1) % 365;
   }
 
-  let jm = 0;
-  let jd = 0;
-  for (let i = 0; i < 12; i++) {
-    const dim = jDaysInMonth[i]!;
-    if (days < dim) {
-      jm = i + 1;
-      jd = days + 1;
-      break;
-    }
-    days -= dim;
-  }
+  /*
+   * `days` اکنون شماره روز در سال شمسی است (از صفر).
+   *
+   * تقسیم مستقیم به‌جای پیمایش ماه‌ها انجام می‌شود چون در سال کبیسه، روز
+   * ۳۶۶ام (۳۰ اسفند) از فهرست طول ماه‌ها بیرون می‌افتد و پیمایش، ماه و روز
+   * صفر برمی‌گرداند. شش ماه اول ۳۱ روزه‌اند (۱۸۶ روز) و بقیه ۳۰ روزه.
+   */
+  const jm = days < 186 ? 1 + Math.floor(days / 31) : 7 + Math.floor((days - 186) / 30);
+  const jd = days < 186 ? 1 + (days % 31) : 1 + ((days - 186) % 30);
+
   return [jy, jm, jd];
 }
 
-/** تبدیل شمسی به میلادی. */
+/**
+ * تبدیل شمسی به میلادی.
+ *
+ * مبنای محاسبه، شمارش روز از یک مبدأ ثابت است. عدد `1595` سال شمسی را به
+ * پنجره‌ای می‌برد که فرمول کبیسه ۳۳ساله در آن معتبر است، و `-355668` همان
+ * تعداد روز را به مبدأ تقویم میلادی برمی‌گرداند. این دو عدد با هم معنا
+ * دارند؛ حذف یکی، سال خروجی را جابه‌جا می‌کند.
+ */
 export function jalaliToGregorian(jy: number, jm: number, jd: number): [number, number, number] {
   const jDaysInMonth = [31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29];
+  const shiftedYear = jy + 1595;
   let days =
-    (jy + 1595) * 0 + // نگه‌داشتن خوانایی فرمول اصلی
-    365 * jy +
-    Math.floor(jy / 33) * 8 +
-    Math.floor(((jy % 33) + 3) / 4) +
-    78 +
+    -355668 +
+    365 * shiftedYear +
+    Math.floor(shiftedYear / 33) * 8 +
+    Math.floor(((shiftedYear % 33) + 3) / 4) +
     jd +
     jDaysInMonth.slice(0, jm - 1).reduce((a, b) => a + b, 0);
 

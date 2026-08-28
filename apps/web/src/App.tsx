@@ -58,6 +58,33 @@ const ReservationsPage = React.lazy(() =>
 const FinesPage = React.lazy(() =>
   import('@/pages/circulation/FinesPage').then((m) => ({ default: m.FinesPage })),
 );
+const LocationsPage = React.lazy(() =>
+  import('@/pages/locations/LocationsPage').then((m) => ({ default: m.LocationsPage })),
+);
+const LocationDetailPage = React.lazy(() =>
+  import('@/pages/locations/LocationDetailPage').then((m) => ({ default: m.LocationDetailPage })),
+);
+const InventoryPage = React.lazy(() =>
+  import('@/pages/locations/InventoryPage').then((m) => ({ default: m.InventoryPage })),
+);
+const InventorySessionPage = React.lazy(() =>
+  import('@/pages/locations/InventorySessionPage').then((m) => ({ default: m.InventorySessionPage })),
+);
+const ReportsPage = React.lazy(() =>
+  import('@/pages/reports/ReportsPage').then((m) => ({ default: m.ReportsPage })),
+);
+const ImportsPage = React.lazy(() =>
+  import('@/pages/reports/ImportsPage').then((m) => ({ default: m.ImportsPage })),
+);
+const SettingsPage = React.lazy(() =>
+  import('@/pages/admin/SettingsPage').then((m) => ({ default: m.SettingsPage })),
+);
+const AuditLogPage = React.lazy(() =>
+  import('@/pages/admin/AuditLogPage').then((m) => ({ default: m.AuditLogPage })),
+);
+const BackupsPage = React.lazy(() =>
+  import('@/pages/admin/BackupsPage').then((m) => ({ default: m.BackupsPage })),
+);
 
 function FullPageSpinner({ label }: { label: string }) {
   return (
@@ -341,6 +368,104 @@ export function App() {
               <RequirePermission permission="fines.view">
                 <React.Suspense fallback={<RouteFallback />}>
                   <FinesPage />
+                </React.Suspense>
+              </RequirePermission>
+            }
+          />
+
+          {/* ── مکان ───────────────────────────────────────────────── */}
+          <Route
+            path="locations"
+            element={
+              <RequirePermission permission="locations.view">
+                <React.Suspense fallback={<RouteFallback />}>
+                  <LocationsPage />
+                </React.Suspense>
+              </RequirePermission>
+            }
+          />
+          <Route
+            path="locations/:id"
+            element={
+              <RequirePermission permission="locations.view">
+                <React.Suspense fallback={<RouteFallback />}>
+                  <LocationDetailPage />
+                </React.Suspense>
+              </RequirePermission>
+            }
+          />
+
+          {/* ── شمارش موجودی ───────────────────────────────────────── */}
+          <Route
+            path="inventory"
+            element={
+              <RequirePermission anyOf={['inventory.view', 'inventory.manage']}>
+                <React.Suspense fallback={<RouteFallback />}>
+                  <InventoryPage />
+                </React.Suspense>
+              </RequirePermission>
+            }
+          />
+          <Route
+            path="inventory/:id"
+            element={
+              <RequirePermission anyOf={['inventory.view', 'inventory.manage']}>
+                <React.Suspense fallback={<RouteFallback />}>
+                  <InventorySessionPage />
+                </React.Suspense>
+              </RequirePermission>
+            }
+          />
+
+          {/* ── گزارش و ورود اطلاعات ───────────────────────────────── */}
+          <Route
+            path="reports"
+            element={
+              <RequirePermission permission="reports.view">
+                <React.Suspense fallback={<RouteFallback />}>
+                  <ReportsPage />
+                </React.Suspense>
+              </RequirePermission>
+            }
+          />
+          <Route
+            path="imports"
+            element={
+              <RequirePermission permission="imports.run">
+                <React.Suspense fallback={<RouteFallback />}>
+                  <ImportsPage />
+                </React.Suspense>
+              </RequirePermission>
+            }
+          />
+
+          {/* ── مدیریت ─────────────────────────────────────────────── */}
+          <Route
+            path="settings"
+            element={
+              <RequirePermission anyOf={['settings.view', 'settings.manage']}>
+                <React.Suspense fallback={<RouteFallback />}>
+                  <SettingsPage />
+                </React.Suspense>
+              </RequirePermission>
+            }
+          />
+          <Route
+            path="audit-logs"
+            element={
+              <RequirePermission permission="audit.view">
+                <React.Suspense fallback={<RouteFallback />}>
+                  <AuditLogPage />
+                </React.Suspense>
+              </RequirePermission>
+            }
+          />
+          <Route
+            path="backups"
+            element={
+              <RequirePermission permission="backup.manage">
+                <React.Suspense fallback={<RouteFallback />}>
+                  <BackupsPage />
                 </React.Suspense>
               </RequirePermission>
             }

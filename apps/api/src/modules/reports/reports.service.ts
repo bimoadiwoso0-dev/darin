@@ -1,5 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { buildPageMeta, normalizePageQuery, type Paginated } from '@darin/shared';
+import {
+  ACQUISITION_SOURCE,
+  COPY_CONDITION,
+  COPY_STATUS,
+  buildPageMeta,
+  normalizePageQuery,
+  type Paginated,
+} from '@darin/shared';
 import { DomainError } from '../../common/errors/domain.error';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { Prisma } from '../../generated/prisma/client';
@@ -259,6 +266,13 @@ export class ReportsService {
 
   // ── پیاده‌سازی گزارش‌ها ────────────────────────────────────────────────
 
+  /*
+   * ── چرا برچسب فارسی و نه کلید خام ─────────────────────────────────────
+   * خروجی گزارش‌ها مستقیماً در Excel باز می‌شود و به مدیر یا حسابرس داده
+   * می‌شود. ستونی با مقدار «GOOD» برای او بی‌معناست و ترجمه‌اش در رابط
+   * کاربری، فایل Excel را بی‌نصیب می‌گذاشت. پس تبدیل همین‌جا انجام می‌شود
+   * تا جدول UI و فایل خروجی یک چیز نشان دهند.
+   */
   private async availableBooks(q: ReportQuery, limit: number, offset: number) {
     const where: Prisma.BookCopyWhereInput = { deletedAt: null, status: 'AVAILABLE' };
     if (q.locationId) {
@@ -301,7 +315,7 @@ export class ReportsService {
         authors: r.book.contributors.map((c) => c.person.fullName).join('، '),
         publisher: r.book.publisher?.name ?? '',
         locationCode: r.location?.fullCode ?? '',
-        condition: r.condition,
+        condition: COPY_CONDITION[r.condition] ?? r.condition,
       })),
       total,
     };
@@ -405,7 +419,7 @@ export class ReportsService {
       rows: rows.map((r) => ({
         accessionNumber: r.accessionNumber,
         title: r.book.title,
-        status: r.status,
+        status: COPY_STATUS[r.status] ?? r.status,
         locationCode: r.location?.fullCode ?? '',
         purchasePrice: r.purchasePrice ? Number(r.purchasePrice) : 0,
         updatedAt: r.updatedAt,
@@ -534,7 +548,7 @@ export class ReportsService {
       rows: rows.map((r) => ({
         accessionNumber: r.accessionNumber,
         title: r.book.title,
-        source: r.acquisitionSource,
+        source: ACQUISITION_SOURCE[r.acquisitionSource] ?? r.acquisitionSource,
         donorName: r.donor?.fullName ?? '',
         purchasePrice: r.purchasePrice ? Number(r.purchasePrice) : 0,
         createdAt: r.createdAt,

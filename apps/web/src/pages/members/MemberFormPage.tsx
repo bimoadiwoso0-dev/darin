@@ -9,7 +9,8 @@ import {
   Button, Card, CardHeader, Field, Input, Select, Skeleton, Textarea,
 } from '@/components/ui';
 import { PageHeader } from '@/components/layout/AppShell';
-import { toDateInputValue, toPersianDigits } from '@/lib/format';
+import { JalaliDateInput } from '@/components/shared/JalaliDateInput';
+import { toPersianDigits } from '@/lib/format';
 
 interface MembershipType {
   id: string; name: string; maxLoans: number | null; loanDays: number | null;
@@ -85,9 +86,9 @@ export function MemberFormPage() {
       firstName: m.firstName, lastName: m.lastName,
       nationalId: m.nationalId ?? '', phone: m.phone ?? '', mobile: m.mobile ?? '',
       email: m.email ?? '', address: m.address ?? '', postalCode: m.postalCode ?? '',
-      birthDate: toDateInputValue(m.birthDate), gender: m.gender,
+      birthDate: m.birthDate ?? '', gender: m.gender,
       membershipTypeId: m.membershipType?.id ?? '', status: m.status,
-      expiresAt: toDateInputValue(m.expiresAt),
+      expiresAt: m.expiresAt ?? '',
       referrerName: m.referrerName ?? '',
       emergencyContactName: m.emergencyContactName ?? '',
       emergencyContactPhone: m.emergencyContactPhone ?? '',
@@ -122,12 +123,13 @@ export function MemberFormPage() {
         email: form.email.trim() || '',
         address: form.address.trim() || null,
         postalCode: form.postalCode.trim() || null,
-        // تاریخ به شکل ISO میلادی ارسال می‌شود؛ نمایش شمسی فقط در رابط است
-        birthDate: form.birthDate ? new Date(form.birthDate).toISOString() : null,
+        // مقدار فرم از ابتدا ISO میلادی است؛ نمایش شمسی فقط در خود کامپوننت
+        // تاریخ انجام می‌شود و هیچ رشته شمسی به سرور نمی‌رسد (قانون ۶۸).
+        birthDate: form.birthDate || null,
         gender: form.gender,
         membershipTypeId: form.membershipTypeId || null,
         status: form.status,
-        expiresAt: form.expiresAt ? new Date(form.expiresAt).toISOString() : null,
+        expiresAt: form.expiresAt || null,
         referrerName: form.referrerName.trim() || null,
         emergencyContactName: form.emergencyContactName.trim() || null,
         emergencyContactPhone: form.emergencyContactPhone.trim() || null,
@@ -229,10 +231,10 @@ export function MemberFormPage() {
                 />
               </Field>
 
-              <Field label="تاریخ تولد" error={errors.birthDate} hint="با تقویم میلادی وارد می‌شود و شمسی نمایش داده خواهد شد.">
-                <Input
-                  type="date" ltr value={form.birthDate}
-                  onChange={(e) => set('birthDate', e.target.value)}
+              <Field label="تاریخ تولد" error={errors.birthDate} hint="تقویم شمسی — تبدیل به میلادی خودکار انجام می‌شود.">
+                <JalaliDateInput
+                  value={form.birthDate || null}
+                  onChange={(iso) => set('birthDate', iso ?? '')}
                 />
               </Field>
 
@@ -376,9 +378,9 @@ export function MemberFormPage() {
                     : 'خالی بگذارید تا از روی مدت نوع عضویت محاسبه شود.'
                 }
               >
-                <Input
-                  type="date" ltr value={form.expiresAt}
-                  onChange={(e) => set('expiresAt', e.target.value)}
+                <JalaliDateInput
+                  value={form.expiresAt || null}
+                  onChange={(iso) => set('expiresAt', iso ?? '')}
                 />
               </Field>
             </div>

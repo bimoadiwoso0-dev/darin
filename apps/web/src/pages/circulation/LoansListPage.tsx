@@ -7,16 +7,17 @@ import { api, ApiError, type Paginated } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
 import {
-  Badge, Button, Card, ConfirmDialog, EmptyState, Field, Input, Select,
+  Badge, Button, Card, ConfirmDialog, EmptyState, Field, Select,
   TableSkeleton, TableWrapper, Td, Th,
 } from '@/components/ui';
 import { PageHeader } from '@/components/layout/AppShell';
 import { FilterBar } from '@/components/shared/FilterBar';
+import { JalaliDateInput } from '@/components/shared/JalaliDateInput';
 import { Pagination } from '@/components/shared/Pagination';
 import { SortableHeader } from '@/components/shared/SortableHeader';
 import { useDebounced, useUrlFilters } from '@/hooks/useUrlFilters';
 import {
-  formatDate, formatMoney, formatNumber, formatRelative, toDateInputValue, toPersianDigits,
+  formatDate, formatMoney, formatNumber, formatRelative, toPersianDigits,
 } from '@/lib/format';
 
 interface LoanRow {
@@ -204,22 +205,16 @@ export function LoansListPage() {
           </Field>
 
           <Field label="موعد پیش از" hint="برای یافتن کتاب‌هایی که به‌زودی سررسید می‌شوند.">
-            <Input
-              type="date" ltr value={toDateInputValue(values.dueBefore || undefined)}
-              onChange={(e) =>
-                setFilters({
-                  dueBefore: e.target.value ? new Date(e.target.value).toISOString() : '',
-                })
-              }
+            <JalaliDateInput
+              value={values.dueBefore || null}
+              onChange={(iso) => setFilters({ dueBefore: iso ?? '' })}
             />
           </Field>
 
           <Field label="امانت از تاریخ">
-            <Input
-              type="date" ltr value={toDateInputValue(values.from || undefined)}
-              onChange={(e) =>
-                setFilters({ from: e.target.value ? new Date(e.target.value).toISOString() : '' })
-              }
+            <JalaliDateInput
+              value={values.from || null}
+              onChange={(iso) => setFilters({ from: iso ?? '' })}
             />
           </Field>
         </FilterBar>
