@@ -1,0 +1,143 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  Darin LMS — استقرار کامل
+#
+#    cp .env.example .env      # و مقادیر را پر کنید
+#    docker compose up -d
+#    docker compose exec api node dist/main.js  # بار اول: راه‌اندازی
+#
+#  راهنمای کامل استقرار: docs/DEPLOYMENT.md
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  # ── پایگاه داده ──────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-darin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?رمز پایگاه داده در .env تعریف نشده است}
+      POSTGRES_DB: ${POSTGRES_DB:-darin}
+      # مقایسه و مرتب‌سازی درست متن فارسی
+      LANG: fa_IR.utf8
+      POSTGRES_INITDB_ARGS: '--encoding=UTF8'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-darin} -d ${POSTGRES_DB:-darin}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    # پایگاه داده به بیرون باز نمی‌شود؛ فقط سرویس‌های همین شبکه به آن
+    # دسترسی دارند. برای اتصال از میزبان، پورت را موقتاً باز کنید.
+    networks:
+      - internal
+
+  # ── صف کارهای پس‌زمینه ───────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # `appendonly` تا کارهای در صف با راه‌اندازی مجدد از دست نروند
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy noeviction
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - internal
+
+  # ── API ──────────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      API_PORT: 3001
+      DATABASE_URL: postgresql://${POSTGRES_USER:-darin}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-darin}?schema=public
+      REDIS_URL: redis://redis:6379
+      QUEUE_ENABLED: 'true'
+
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?با openssl rand -base64 48 تولید کنید}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?باید با JWT_ACCESS_SECRET متفاوت باشد}
+      JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-15m}
+      JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-7d}
+
+      # پشت HTTPS اجباری است؛ بدون آن کوکی احراز هویت روی HTTP هم فرستاده می‌شود
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      COOKIE_DOMAIN: ${COOKIE_DOMAIN:-}
+      CORS_ORIGINS: ${PUBLIC_WEB_URL:-http://localhost}
+      PUBLIC_WEB_URL: ${PUBLIC_WEB_URL:-http://localhost}
+
+      RATE_LIMIT_TTL: ${RATE_LIMIT_TTL:-60}
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-300}
+      RATE_LIMIT_LOGIN_MAX: ${RATE_LIMIT_LOGIN_MAX:-10}
+
+      STORAGE_DRIVER: local
+      STORAGE_LOCAL_PATH: /app/storage
+      BACKUP_PATH: /app/storage/backups
+      MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-15}
+
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      LOG_PRETTY: 'false'
+    volumes:
+      # پشتیبان‌ها و پیوست‌ها باید از چرخه عمر کانتینر جدا باشند
+      - api-storage:/app/storage
+    networks:
+      - internal
+
+  # ── رابط کاربری ──────────────────────────────────────────────────────────
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - '${WEB_PUBLIC_PORT:-80}:80'
+    networks:
+      - internal
+
+  # ── اجرای مهاجرت پایگاه داده ─────────────────────────────────────────────
+  #
+  # سرویس جداگانه با پروفایل `migrate` تا هنگام `up` معمولی اجرا نشود.
+  # اجرای خودکار مهاجرت هنگام بالا آمدن سرویس خطرناک است: در استقرار
+  # چندنمونه‌ای، چند کانتینر هم‌زمان مهاجرت می‌زنند.
+  #
+  #   docker compose --profile migrate run --rm migrate
+  #
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    profiles: ['migrate']
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-darin}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-darin}?schema=public
+      NODE_ENV: production
+    command: >
+      sh -c "node node_modules/prisma/build/index.js migrate deploy
+             && node seed/prisma/seed.js --core-only"
+    networks:
+      - internal
+
+volumes:
+  postgres-data:
+  redis-data:
+  api-storage:
+
+networks:
+  internal:
+    driver: bridge

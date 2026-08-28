@@ -1,0 +1,50 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  آنچه هرگز نباید وارد تصویر شود
+#
+#  دو دلیل: امنیت (رمزها و کلیدها) و سرعت ساخت (node_modules میزبان چند صد
+#  مگابایت است و به‌هرحال داخل تصویر دوباره نصب می‌شود).
+# ─────────────────────────────────────────────────────────────────────────────
+
+# رمزها و کلیدها — مهم‌ترین سطر این فایل
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# وابستگی‌ها و خروجی ساخت (در خود تصویر تولید می‌شوند)
+node_modules
+**/node_modules
+dist
+**/dist
+dist-seed
+**/dist-seed
+build
+**/build
+apps/api/src/generated
+.pnpm-store
+
+# داده و پشتیبان محلی
+storage
+**/storage
+*.sql
+*.dump
+backups
+
+# ابزار توسعه
+.git
+.github
+.vscode
+.idea
+coverage
+**/coverage
+*.log
+.DS_Store
+
+# مستندات و آزمون — در زمان اجرا لازم نیستند
+docs
+**/*.spec.ts
+**/*.test.ts
+apps/api/test
+apps/web/test-results
+apps/web/playwright-report

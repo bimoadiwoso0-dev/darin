@@ -20,3 +20,7 @@ apps/api/src/generated/
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# خروجی ساخت اسکریپت‌های Seed
+apps/api/dist-seed
+apps/api/tsconfig.seed.tsbuildinfo

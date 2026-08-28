@@ -1,0 +1,21 @@
+{
+  /*
+   * ساخت اسکریپت‌های Seed به JavaScript ساده.
+   *
+   * چرا لازم است: `tsx` یک devDependency است و تصویر Production آن را
+   * ندارد (`pnpm deploy --prod` حذفش می‌کند). بدون این ساخت، سرویس
+   * `migrate` در docker-compose هنگام Seed هسته شکست می‌خورد — یعنی
+   * استقرار تازه بدون نقش‌ها و مجوزها بالا می‌آید و Setup Wizard کار نمی‌کند.
+   */
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "rootDir": ".",
+    "outDir": "dist-seed",
+    "declaration": false,
+    "sourceMap": false,
+    "noUnusedLocals": false,
+    "tsBuildInfoFile": "tsconfig.seed.tsbuildinfo"
+  },
+  "include": ["prisma/**/*.ts"]
+}

@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "build": "pnpm clean && nest build",
+    "build:seed": "tsc -p tsconfig.seed.json",
     "dev": "nest start --watch",
     "start": "node dist/main.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -16,7 +17,7 @@
     "db:reset": "prisma migrate reset --force",
     "db:seed": "tsx prisma/seed.ts",
     "seed:perf": "tsx prisma/seed-performance.ts",
-    "clean": "rm -rf dist tsconfig.tsbuildinfo",
+    "clean": "rm -rf dist dist-seed tsconfig.tsbuildinfo tsconfig.seed.tsbuildinfo",
     "perf:measure": "tsx prisma/measure-performance.ts"
   },
   "prisma": {
@@ -38,6 +39,7 @@
     "bullmq": "^6.3.1",
     "bwip-js": "^4.11.4",
     "cookie-parser": "^1.4.7",
+    "dotenv": "^17.4.2",
     "exceljs": "^4.4.0",
     "helmet": "^8.3.0",
     "ioredis": "^6.0.0",
@@ -66,7 +68,6 @@
     "@types/pg": "^8.23.1",
     "@types/qrcode": "^1.5.6",
     "@types/supertest": "^7.2.1",
-    "dotenv": "^17.4.2",
     "jest": "^30.4.2",
     "supertest": "^7.2.2",
     "ts-jest": "^29.4.12",
