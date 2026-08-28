@@ -22,7 +22,7 @@
 | [`docs/API.md`](docs/API.md) | مرجع REST API |
 | [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md) | راهنمای کتابدار |
 | [`docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md) | سیستم طراحی، رنگ، تایپوگرافی، RTL |
-| [`FINAL_CHECKLIST.md`](FINAL_CHECKLIST.md) | وضعیت هر یک از ۱۵۰ خواسته |
+| [`FINAL_CHECKLIST.md`](FINAL_CHECKLIST.md) | وضعیت نهایی: چه ساخته شد، چه نشد، و چه چیزی قابل بررسی نبود |
 
 ---
 
