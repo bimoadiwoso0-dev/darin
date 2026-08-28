@@ -80,7 +80,15 @@ export function AppShell() {
 
   const themeIcons = { light: Sun, dark: Moon, system: Monitor };
   const ThemeIcon = themeIcons[theme];
-  const nextTheme = theme === 'light' ? 'dark' : theme === 'dark' ? 'system' : 'light';
+  /*
+   * ترتیب چرخه تم: خودکار ← تیره ← روشن ← خودکار.
+   *
+   * ترتیب متعارف (روشن ← تیره ← خودکار) یک ایراد دارد: حالت پیش‌فرض
+   * «خودکار» است و روی سیستمی که روشن تنظیم شده، اولین کلیک کاربر را به
+   * «روشن» می‌برد — یعنی هیچ تغییری نمی‌بیند و فکر می‌کند دکمه خراب است.
+   * با این ترتیب، اولین کلیک همیشه ظاهر را عوض می‌کند.
+   */
+  const nextTheme = theme === 'system' ? 'dark' : theme === 'dark' ? 'light' : 'system';
   const themeLabels = { light: 'روشن', dark: 'تیره', system: 'خودکار' };
 
   return (

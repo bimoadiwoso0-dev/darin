@@ -28,6 +28,36 @@ const BookDetailPage = React.lazy(() =>
 const BookFormPage = React.lazy(() =>
   import('@/pages/books/BookFormPage').then((m) => ({ default: m.BookFormPage })),
 );
+const CopiesListPage = React.lazy(() =>
+  import('@/pages/books/CopiesListPage').then((m) => ({ default: m.CopiesListPage })),
+);
+const CopyDetailPage = React.lazy(() =>
+  import('@/pages/books/CopyDetailPage').then((m) => ({ default: m.CopyDetailPage })),
+);
+const MembersListPage = React.lazy(() =>
+  import('@/pages/members/MembersListPage').then((m) => ({ default: m.MembersListPage })),
+);
+const MemberDetailPage = React.lazy(() =>
+  import('@/pages/members/MemberDetailPage').then((m) => ({ default: m.MemberDetailPage })),
+);
+const MemberFormPage = React.lazy(() =>
+  import('@/pages/members/MemberFormPage').then((m) => ({ default: m.MemberFormPage })),
+);
+const CirculationDeskPage = React.lazy(() =>
+  import('@/pages/circulation/CirculationDeskPage').then((m) => ({ default: m.CirculationDeskPage })),
+);
+const ReturnsPage = React.lazy(() =>
+  import('@/pages/circulation/ReturnsPage').then((m) => ({ default: m.ReturnsPage })),
+);
+const LoansListPage = React.lazy(() =>
+  import('@/pages/circulation/LoansListPage').then((m) => ({ default: m.LoansListPage })),
+);
+const ReservationsPage = React.lazy(() =>
+  import('@/pages/circulation/ReservationsPage').then((m) => ({ default: m.ReservationsPage })),
+);
+const FinesPage = React.lazy(() =>
+  import('@/pages/circulation/FinesPage').then((m) => ({ default: m.FinesPage })),
+);
 
 function FullPageSpinner({ label }: { label: string }) {
   return (
@@ -195,6 +225,122 @@ export function App() {
               <RequirePermission permission="books.edit">
                 <React.Suspense fallback={<RouteFallback />}>
                   <BookFormPage />
+                </React.Suspense>
+              </RequirePermission>
+            }
+          />
+
+          {/* ── نسخه‌های فیزیکی ────────────────────────────────────── */}
+          <Route
+            path="copies"
+            element={
+              <RequirePermission permission="copies.view">
+                <React.Suspense fallback={<RouteFallback />}>
+                  <CopiesListPage />
+                </React.Suspense>
+              </RequirePermission>
+            }
+          />
+          <Route
+            path="copies/:id"
+            element={
+              <RequirePermission permission="copies.view">
+                <React.Suspense fallback={<RouteFallback />}>
+                  <CopyDetailPage />
+                </React.Suspense>
+              </RequirePermission>
+            }
+          />
+
+          {/* ── اعضا ───────────────────────────────────────────────── */}
+          <Route
+            path="members"
+            element={
+              <RequirePermission permission="members.view">
+                <React.Suspense fallback={<RouteFallback />}>
+                  <MembersListPage />
+                </React.Suspense>
+              </RequirePermission>
+            }
+          />
+          <Route
+            path="members/new"
+            element={
+              <RequirePermission permission="members.create">
+                <React.Suspense fallback={<RouteFallback />}>
+                  <MemberFormPage />
+                </React.Suspense>
+              </RequirePermission>
+            }
+          />
+          <Route
+            path="members/:id"
+            element={
+              <RequirePermission permission="members.view">
+                <React.Suspense fallback={<RouteFallback />}>
+                  <MemberDetailPage />
+                </React.Suspense>
+              </RequirePermission>
+            }
+          />
+          <Route
+            path="members/:id/edit"
+            element={
+              <RequirePermission permission="members.edit">
+                <React.Suspense fallback={<RouteFallback />}>
+                  <MemberFormPage />
+                </React.Suspense>
+              </RequirePermission>
+            }
+          />
+
+          {/* ── امانت ──────────────────────────────────────────────── */}
+          <Route
+            path="circulation"
+            element={
+              <RequirePermission permission="loans.create">
+                <React.Suspense fallback={<RouteFallback />}>
+                  <CirculationDeskPage />
+                </React.Suspense>
+              </RequirePermission>
+            }
+          />
+          <Route
+            path="returns"
+            element={
+              <RequirePermission permission="loans.return">
+                <React.Suspense fallback={<RouteFallback />}>
+                  <ReturnsPage />
+                </React.Suspense>
+              </RequirePermission>
+            }
+          />
+          <Route
+            path="loans"
+            element={
+              <RequirePermission permission="loans.view">
+                <React.Suspense fallback={<RouteFallback />}>
+                  <LoansListPage />
+                </React.Suspense>
+              </RequirePermission>
+            }
+          />
+          <Route
+            path="reservations"
+            element={
+              <RequirePermission permission="reservations.view">
+                <React.Suspense fallback={<RouteFallback />}>
+                  <ReservationsPage />
+                </React.Suspense>
+              </RequirePermission>
+            }
+          />
+          <Route
+            path="fines"
+            element={
+              <RequirePermission permission="fines.view">
+                <React.Suspense fallback={<RouteFallback />}>
+                  <FinesPage />
                 </React.Suspense>
               </RequirePermission>
             }

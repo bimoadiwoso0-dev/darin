@@ -110,6 +110,12 @@ function periodLabel(period: string): string {
   return new Intl.DateTimeFormat('fa-IR-u-ca-persian', { month: 'short', year: '2-digit' }).format(date);
 }
 
+/*
+ * ── چرا انیمیشن نمودارها خاموش است ──────────────────────────────────────
+ * داشبورد ابزار کار روزانه است، نه صفحه تبلیغاتی. انیمیشن ورودی یعنی
+ * کتابدار نیم‌ثانیه اول عدد درست را نمی‌بیند، و در چاپ یا اسکرین‌شات
+ * نمودارِ نیمه‌کشیده ثبت می‌شود. رسم بی‌درنگ، هم دقیق‌تر است هم سریع‌تر.
+ */
 const CHART_COLORS = ['#1e40af', '#0891b2', '#15803d', '#b45309', '#be123c', '#7c3aed', '#0f766e', '#a16207'];
 
 export function DashboardPage() {
@@ -279,10 +285,12 @@ export function DashboardPage() {
                   <Area
                     type="monotone" dataKey="loans" name="امانت"
                     stroke="#1e40af" strokeWidth={2} fill="url(#loansFill)"
+                    isAnimationActive={false}
                   />
                   <Area
                     type="monotone" dataKey="returns" name="بازگشت"
                     stroke="#15803d" strokeWidth={2} fill="url(#returnsFill)"
+                    isAnimationActive={false}
                   />
                 </AreaChart>
               </ResponsiveContainer>
@@ -302,27 +310,51 @@ export function DashboardPage() {
             {isLoading ? (
               <Skeleton className="h-64" />
             ) : data?.popularCategories.length ? (
-              <ResponsiveContainer width="100%" height={260}>
-                <PieChart>
-                  <Pie
-                    data={data.popularCategories}
-                    dataKey="loanCount"
-                    nameKey="name"
-                    innerRadius={52}
-                    outerRadius={88}
-                    paddingAngle={2}
-                  >
-                    {data.popularCategories.map((entry, i) => (
-                      <Cell key={entry.id} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip content={<ChartTooltip />} />
-                  <Legend
-                    wrapperStyle={{ fontSize: 11, direction: 'rtl' }}
-                    formatter={(value: string) => value}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
+              <>
+                <ResponsiveContainer width="100%" height={190}>
+                  <PieChart>
+                    <Pie
+                      data={data.popularCategories}
+                      dataKey="loanCount"
+                      nameKey="name"
+                      innerRadius={48}
+                      outerRadius={80}
+                      paddingAngle={2}
+                      isAnimationActive={false}
+                    >
+                      {data.popularCategories.map((entry, i) => (
+                        <Cell key={entry.id} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip content={<ChartTooltip />} />
+                  </PieChart>
+                </ResponsiveContainer>
+
+                {/*
+                  راهنمای نمودار به‌صورت دستی ساخته می‌شود، نه با `<Legend>`.
+                  راهنمای پیش‌فرض recharts آیتم‌ها را چپ‌به‌راست می‌چیند و در
+                  RTL نمونه‌رنگ هر آیتم کنار نام آیتم بعدی می‌افتد. این فهرست
+                  علاوه بر درست بودن جهت، تعداد امانت هر موضوع را هم نشان
+                  می‌دهد که خودش اطلاعات مفیدی است.
+                */}
+                <ul className="mt-3 space-y-1">
+                  {data.popularCategories.map((category, i) => (
+                    <li key={category.id} className="flex items-center gap-2 text-xs">
+                      <span
+                        className="size-2.5 shrink-0 rounded-sm"
+                        style={{ background: CHART_COLORS[i % CHART_COLORS.length] }}
+                        aria-hidden
+                      />
+                      <span className="min-w-0 flex-1 truncate text-content-muted">
+                        {category.name}
+                      </span>
+                      <span className="shrink-0 font-medium text-content">
+                        {formatNumber(category.loanCount)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </>
             ) : (
               <EmptyState title="داده‌ای در این بازه نیست" description="بازه دیگری را انتخاب کنید." />
             )}
@@ -476,7 +508,10 @@ export function DashboardPage() {
                     tickFormatter={(v: number) => toPersianDigits(v)}
                   />
                   <Tooltip content={<ChartTooltip />} />
-                  <Bar dataKey="added" name="نسخه افزوده‌شده" fill="#0891b2" radius={[3, 3, 0, 0]} />
+                  <Bar
+                    dataKey="added" name="نسخه افزوده‌شده" fill="#0891b2"
+                    radius={[3, 3, 0, 0]} isAnimationActive={false}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             ) : (

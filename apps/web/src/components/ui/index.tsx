@@ -331,8 +331,8 @@ export function TableWrapper({ children, className }: { children: React.ReactNod
 }
 
 export function Th({
-  children, className, numeric, ...props
-}: React.ThHTMLAttributes<HTMLTableCellElement> & { numeric?: boolean }) {
+  children, className, numeric, amount, ...props
+}: React.ThHTMLAttributes<HTMLTableCellElement> & { numeric?: boolean; amount?: boolean }) {
   return (
     <th
       scope="col"
@@ -342,6 +342,7 @@ export function Th({
         numeric && 'text-end',
         className,
       )}
+      data-amount={amount || undefined}
       {...props}
     >
       {children}
@@ -350,11 +351,21 @@ export function Th({
 }
 
 export function Td({
-  children, className, numeric, ...props
-}: React.TdHTMLAttributes<HTMLTableCellElement> & { numeric?: boolean }) {
+  children, className, numeric, amount, ...props
+}: React.TdHTMLAttributes<HTMLTableCellElement> & {
+  /** عبارت عددی با ترتیب معنادار (مثل «۳ / ۵») — چپ‌به‌راست رسم می‌شود */
+  numeric?: boolean;
+  /** مبلغ — جهت فارسی می‌ماند، فقط ارقام هم‌عرض می‌شوند */
+  amount?: boolean;
+}) {
   return (
     <td
-      className={cn('border-b border-border px-4 py-2.5 align-middle', numeric && 'cell-numeric', className)}
+      className={cn(
+        'border-b border-border px-4 py-2.5 align-middle',
+        numeric && 'cell-numeric',
+        amount && 'cell-amount',
+        className,
+      )}
       {...props}
     >
       {children}
