@@ -29,6 +29,7 @@ import { NumberingModule } from './modules/numbering/numbering.module';
 import { HealthModule } from './modules/health/health.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { SetupModule } from './modules/setup/setup.module';
+import { UsersModule } from './modules/users/users.module';
 
 @Module({
   imports: [
@@ -102,6 +103,7 @@ import { SetupModule } from './modules/setup/setup.module';
     AuditModule,
     AuthModule,
     SetupModule,
+    UsersModule,
     HealthModule,
 
     // ── ماژول‌های دامنه ──────────────────────────────────────────────

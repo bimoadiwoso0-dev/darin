@@ -85,6 +85,12 @@ const AuditLogPage = React.lazy(() =>
 const BackupsPage = React.lazy(() =>
   import('@/pages/admin/BackupsPage').then((m) => ({ default: m.BackupsPage })),
 );
+const UsersPage = React.lazy(() =>
+  import('@/pages/admin/UsersPage').then((m) => ({ default: m.UsersPage })),
+);
+const RolesPage = React.lazy(() =>
+  import('@/pages/admin/RolesPage').then((m) => ({ default: m.RolesPage })),
+);
 
 function FullPageSpinner({ label }: { label: string }) {
   return (
@@ -466,6 +472,27 @@ export function App() {
               <RequirePermission permission="backup.manage">
                 <React.Suspense fallback={<RouteFallback />}>
                   <BackupsPage />
+                </React.Suspense>
+              </RequirePermission>
+            }
+          />
+
+          <Route
+            path="users"
+            element={
+              <RequirePermission permission="users.view">
+                <React.Suspense fallback={<RouteFallback />}>
+                  <UsersPage />
+                </React.Suspense>
+              </RequirePermission>
+            }
+          />
+          <Route
+            path="roles"
+            element={
+              <RequirePermission permission="roles.manage">
+                <React.Suspense fallback={<RouteFallback />}>
+                  <RolesPage />
                 </React.Suspense>
               </RequirePermission>
             }
