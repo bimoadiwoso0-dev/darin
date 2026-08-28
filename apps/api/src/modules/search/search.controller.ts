@@ -58,7 +58,7 @@ export class SearchController {
     const { q, page, pageSize, sort, ...filters } = query;
     const result = await this.search.searchBooks(
       q,
-      filters as never,
+      filters,
       { limit: pageSize, offset: (page - 1) * pageSize },
       sort,
     );

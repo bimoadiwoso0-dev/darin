@@ -72,3 +72,6 @@
 | **Phase 5** | جستجو، گزارش، داشبورد، Inventory، Import/Export، برچسب، Backup |
 | **Phase 6** | Frontend کامل با Design System |
 | **Phase 7** | تست، Seed، Perf Seed، Docker، مستندات، QA نهایی |
+
+هر هفت فاز تکمیل شده‌اند. وضعیت دقیق هر بخش، آنچه ساخته نشده، و آنچه در
+محیط ساخت قابل بررسی نبود، در [`../FINAL_CHECKLIST.md`](../FINAL_CHECKLIST.md).

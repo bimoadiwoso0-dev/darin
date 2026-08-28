@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Param, Put } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { SETTING_GROUPS, validateNumberPattern, type SettingKey } from '@darin/shared';
+import { SETTING_GROUPS, validateNumberPattern } from '@darin/shared';
 import { z } from 'zod';
 import {
   ClientIp,
@@ -73,7 +73,7 @@ export class SettingsController {
     @ClientIp() ip: string,
   ) {
     const before = this.settings.snapshot(Object.keys(body));
-    const updated = await this.settings.updateMany(body as Partial<Record<SettingKey, unknown>>, user.sub);
+    const updated = await this.settings.updateMany(body, user.sub);
 
     await this.audit.recordUpdate({
       entityType: 'Setting',

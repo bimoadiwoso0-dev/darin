@@ -24,7 +24,10 @@ interface ImportField {
 interface UploadResult {
   jobId: string;
   headers: string[];
-  sampleRows: Array<Record<string, unknown>>;
+  // سرور هر سلول را با `cellToString` به رشته تبدیل می‌کند؛ `unknown`
+  // اینجا فقط باعث می‌شد نمایش به `String(…)` تکیه کند و در حالت مرزی
+  // «[object Object]» چاپ شود.
+  sampleRows: Array<Record<string, string>>;
   totalRows: number;
   suggestedMapping: Record<string, string>;
   availableFields: ImportField[];
@@ -356,7 +359,7 @@ export function ImportsPage() {
                       ))}
                     </Select>
                     <p className="mt-1.5 truncate text-2xs text-content-subtle">
-                      نمونه: {String(upload.sampleRows[0]?.[header] ?? '—')}
+                      نمونه: {upload.sampleRows[0]?.[header] || '—'}
                     </p>
                   </div>
                 ))}
@@ -401,7 +404,7 @@ export function ImportsPage() {
                         key={header}
                         className={cn('text-xs', !mapping[header] && 'text-content-subtle')}
                       >
-                        {String(row[header] ?? '—')}
+                        {row[header] || '—'}
                       </Td>
                     ))}
                   </tr>

@@ -122,7 +122,8 @@ export function numberPatternToSequenceRegex(pattern: string): string | null {
   let lastIndex = 0;
   let sawSeq = false;
 
-  const escape = (literal: string): string => literal.replace(/[.*+?^${}()|[\]\\\-]/g, '\\$&');
+  // `-` در انتهای کلاس نویسه، خودش معنی می‌دهد و نیازی به گریز ندارد
+  const escape = (literal: string): string => literal.replace(/[.*+?^${}()|[\]\\-]/g, '\\$&');
 
   for (const match of pattern.matchAll(TOKEN_RE)) {
     const index = match.index ?? 0;

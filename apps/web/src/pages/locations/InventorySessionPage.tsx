@@ -103,7 +103,7 @@ export function InventorySessionPage() {
     enabled: !!id,
     // شمارش را ممکن است چند نفر هم‌زمان انجام دهند؛ پیشرفت باید تازه بماند
     refetchInterval: (q) =>
-      (q.state.data as Progress | undefined)?.status === 'IN_PROGRESS' ? 15_000 : false,
+      (q.state.data)?.status === 'IN_PROGRESS' ? 15_000 : false,
   });
 
   const isDone = progress?.status === 'COMPLETED' || progress?.status === 'CANCELLED';

@@ -297,8 +297,22 @@ function renderCell(value: unknown, type?: ReportColumn['type']): React.ReactNod
   if (value === null || value === undefined || value === '') {
     return <span className="text-content-subtle">—</span>;
   }
-  if (type === 'date') return formatDate(String(value));
+  if (type === 'date') {
+    return formatDate(value instanceof Date || typeof value === 'string' ? value : null);
+  }
   if (type === 'money') return formatMoney(Number(value));
   if (type === 'number') return toPersianDigits(Number(value));
+
+  /*
+   * ستون‌های گزارش مقدار ساده دارند، اما مقدار از JSON سرور می‌آید و نوعش
+   * `unknown` است. اگر روزی ستونی آرایه یا شیء برگرداند، `String(value)`
+   * در گزارش کتابدار «[object Object]» چاپ می‌کرد — چیزی که نه معنا دارد
+   * نه می‌شود فهمید از کجا آمده.
+   */
+  if (Array.isArray(value)) return value.map((v) => String(v)).join('، ');
+  if (typeof value === 'object') {
+    return <code className="field-ltr text-2xs">{JSON.stringify(value)}</code>;
+  }
+  // eslint-disable-next-line @typescript-eslint/no-base-to-string -- آرایه و شیء بالاتر جدا شده‌اند
   return String(value);
 }

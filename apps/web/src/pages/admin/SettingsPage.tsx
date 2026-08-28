@@ -221,6 +221,21 @@ export function SettingsPage() {
   );
 }
 
+/**
+ * مقدار تنظیم به متن قابل نمایش در فیلد.
+ *
+ * مقدار از JSON سرور می‌آید و نوعش `unknown` است. `String(value)` روی
+ * رشته و عدد و بولی درست کار می‌کند، ولی اگر روزی تنظیمی مقدار مرکب
+ * بگیرد، فیلد «[object Object]» نشان می‌داد و ذخیره کردن فرم همان رشته
+ * را در تنظیمات می‌نوشت.
+ */
+function settingText(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'object') return JSON.stringify(value);
+  // eslint-disable-next-line @typescript-eslint/no-base-to-string -- شیء در شرط بالا جدا شده
+  return String(value);
+}
+
 function SettingInput({
   settingKey, meta, value, onChange, error, disabled, dirty,
 }: {
@@ -304,7 +319,7 @@ function SettingInput({
         className={cn(dirty && 'rounded ring-2 ring-warning/30')}
       >
         <Select
-          value={String(value ?? '')}
+          value={settingText(value)}
           disabled={disabled}
           onChange={(e) => onChange(e.target.value)}
         >
@@ -330,7 +345,7 @@ function SettingInput({
         ltr={numeric}
         min={meta.min}
         max={meta.max}
-        value={String(value ?? '')}
+        value={settingText(value)}
         disabled={disabled}
         invalid={!!error}
         onChange={(e) => onChange(numeric ? Number(e.target.value) : e.target.value)}

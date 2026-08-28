@@ -198,8 +198,8 @@ export class ReferenceService {
 
     await this.audit.recordUpdate({
       entityType: 'Person', entityId: id, entityLabel: before.fullName,
-      before: before as unknown as Record<string, unknown>,
-      after: input as Record<string, unknown>,
+      before: before,
+      after: input,
       user, ip,
     });
     return updated;
@@ -408,7 +408,7 @@ export class ReferenceService {
     for (const c of categories) {
       byId.set(c.id, {
         ...c,
-        kind: c.kind as 'SUBJECT' | 'GENRE',
+        kind: c.kind,
         bookCount: countByCategory.get(c.id) ?? 0,
         children: [],
       });
@@ -448,7 +448,7 @@ export class ReferenceService {
     if (input.parentId && !parent) throw DomainError.notFound('دسته والد');
 
     // درخت موضوع و درخت ژانر نباید در هم بروند
-    const kind = input.kind ?? (parent?.kind as 'SUBJECT' | 'GENRE') ?? 'SUBJECT';
+    const kind = input.kind ?? (parent?.kind) ?? 'SUBJECT';
     if (parent && parent.kind !== kind) {
       throw DomainError.validation({
         kind: ['نوع دسته باید با نوع دسته والد یکسان باشد.'],
@@ -549,8 +549,8 @@ export class ReferenceService {
 
     await this.audit.recordUpdate({
       entityType: 'Category', entityId: id, entityLabel: before.name,
-      before: before as unknown as Record<string, unknown>,
-      after: input as Record<string, unknown>, user, ip,
+      before: before,
+      after: input, user, ip,
     });
     return updated;
   }

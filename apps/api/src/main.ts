@@ -41,8 +41,12 @@ async function bootstrap(): Promise<void> {
 
   app.setGlobalPrefix('api');
 
-  // پشت Nginx اجرا می‌شود؛ بدون این، IP همه کاربران 127.0.0.1 ثبت می‌شد
-  app.getHttpAdapter().getInstance().set('trust proxy', 1);
+  // پشت Nginx اجرا می‌شود؛ بدون این، IP همه کاربران 127.0.0.1 ثبت می‌شد.
+  // `getInstance()` نوع `any` می‌دهد؛ همین‌جا به شکل واقعی‌اش محدود می‌شود.
+  const httpInstance = app.getHttpAdapter().getInstance() as {
+    set: (key: string, value: unknown) => void;
+  };
+  httpInstance.set('trust proxy', 1);
 
   // ── مستندات API ────────────────────────────────────────────────────────
   if (!isProduction) {

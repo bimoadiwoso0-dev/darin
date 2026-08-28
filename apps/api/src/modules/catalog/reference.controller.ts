@@ -117,7 +117,7 @@ export class PersonsController {
     @CurrentUser() user: AuthenticatedUser,
     @ClientIp() ip: string,
   ) {
-    return this.reference.updatePerson(id, body as never, user, ip);
+    return this.reference.updatePerson(id, body, user, ip);
   }
 
   /** ادغام دو رکورد تکراری — پس از Import اطلاعات قدیمی پرکاربرد است. */
@@ -212,7 +212,7 @@ export class CategoriesController {
     @CurrentUser() user: AuthenticatedUser,
     @ClientIp() ip: string,
   ) {
-    return this.reference.createCategory(body as never, user, ip);
+    return this.reference.createCategory(body, user, ip);
   }
 
   @Patch(':id')
@@ -224,7 +224,7 @@ export class CategoriesController {
     @CurrentUser() user: AuthenticatedUser,
     @ClientIp() ip: string,
   ) {
-    return this.reference.updateCategory(id, body as never, user, ip);
+    return this.reference.updateCategory(id, body, user, ip);
   }
 
   @Post(':id/move')

@@ -541,7 +541,7 @@ export class ImportService {
 
       // شمارنده‌ها باید با شماره‌های واردشده همگام شوند، وگرنه اولین کتابی
       // که بعداً ثبت شود شماره تکراری می‌گیرد.
-      await syncNumberingSequences(this.prisma as never, {
+      await syncNumberingSequences(this.prisma, {
         solarYear: currentJalaliYear(),
         solarMonth: currentJalaliMonth(),
       });
@@ -592,7 +592,14 @@ export class ImportService {
     if (typeof err === 'object' && err !== null && 'code' in err) {
       const code = (err as { code: string }).code;
       const meta = (err as { meta?: { target?: unknown } }).meta;
-      const target = Array.isArray(meta?.target) ? meta.target.join(',') : String(meta?.target ?? '');
+      // `meta.target` در پریزما رشته یا آرایه رشته است، ولی نوعش تضمینی
+      // نیست؛ شکل غیرمنتظره باید به رشته خالی برسد نه «[object Object]»
+      const rawTarget = meta?.target;
+      const target = Array.isArray(rawTarget)
+        ? rawTarget.map((t) => String(t)).join(',')
+        : typeof rawTarget === 'string'
+          ? rawTarget
+          : '';
 
       if (code === 'P2002') {
         if (/barcode/i.test(target)) return 'بارکد تکراری است.';
@@ -760,10 +767,10 @@ export class ImportService {
         copyNumber: i + 1,
         accessionNumber: useManualAccession
           ? manualAccession
-          : autoAccessions[manualAccession ? i - 1 : i]!,
+          : autoAccessions[manualAccession ? i - 1 : i],
         barcode: useManualBarcode
           ? manualBarcode
-          : autoBarcodes[manualBarcode ? i - 1 : i]!,
+          : autoBarcodes[manualBarcode ? i - 1 : i],
         libraryCode: i === 0 ? (row['libraryCode']?.trim() || null) : null,
         assetNumber: i === 0 ? (row['assetNumber']?.trim() || null) : null,
         locationId: locationId || null,
@@ -814,7 +821,16 @@ export class ImportService {
     const headerRow = sheet.getRow(1);
     const headers: string[] = [];
     headerRow.eachCell({ includeEmpty: false }, (cell, colNumber) => {
-      headers[colNumber - 1] = String(cell.value ?? '').trim();
+      /*
+       * سرصفحه هم باید از همان مسیر ردیف‌های داده بگذرد.
+       *
+       * `String(cell.value)` روی سلول ساده کار می‌کند، ولی سرصفحه فایل‌های
+       * واقعی معمولاً قالب‌بندی دارد و ExcelJS آن را به‌جای رشته، شیء
+       * `richText` می‌دهد؛ نتیجه‌اش نام ستون `[object Object]` می‌شد و آن
+       * ستون دیگر قابل نگاشت نبود. `cellToString` هر سه حالت richText،
+       * فرمول و لینک را باز می‌کند.
+       */
+      headers[colNumber - 1] = cellToString(cell.value);
     });
 
     const rows: Array<Record<string, string>> = [];
@@ -997,12 +1013,20 @@ function cellToString(value: ExcelJS.CellValue): string {
 
   if (typeof value === 'object') {
     // سلول فرمول: نتیجه محاسبه‌شده مهم است نه خود فرمول
-    if ('result' in value) return cellToString(value.result as ExcelJS.CellValue);
+    if ('result' in value) return cellToString(value.result);
     if ('text' in value) return String(value.text).trim();
     if ('richText' in value) {
       return (value.richText as Array<{ text: string }>).map((r) => r.text).join('').trim();
     }
     if ('hyperlink' in value) return String(value.hyperlink);
+
+    /*
+     * شکل ناشناخته. `String(value)` اینجا «[object Object]» می‌دهد و آن
+     * رشته مستقیم داخل عنوان کتاب می‌نشست. رشته خالی بهتر است: سلول
+     * خالی در گزارش اعتبارسنجی دیده و اصلاح می‌شود، ولی «[object Object]»
+     * یک مقدارِ به‌ظاهر معتبر است که از اعتبارسنجی رد می‌شود.
+     */
+    return '';
   }
-  return String(value).trim();
+  return '';
 }

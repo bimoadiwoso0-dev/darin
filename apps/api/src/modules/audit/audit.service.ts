@@ -134,6 +134,7 @@ function isEqual(a: unknown, b: unknown): boolean {
   }
   // مقایسه Decimal پرisma با عدد ساده
   if (typeof a === 'object' && a !== null && 'toString' in a && typeof b === 'number') {
+    // eslint-disable-next-line @typescript-eslint/no-base-to-string -- شرط بالا وجود toString را روی Decimal پریزما بررسی کرده است
     return String(a) === String(b);
   }
   return false;

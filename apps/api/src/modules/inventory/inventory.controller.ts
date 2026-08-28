@@ -26,7 +26,7 @@ export class InventoryController {
     })))
     query: Record<string, unknown>,
   ) {
-    return this.inventory.list(query as never);
+    return this.inventory.list(query);
   }
 
   @Post()

@@ -188,7 +188,7 @@ export class LocationsService {
     }
     if (newParentId === id) throw new DomainError(ERROR_CODES.CIRCULAR_LOCATION);
 
-    this.assertValidHierarchy(newParent?.kind ?? null, node.kind as LocationKind);
+    this.assertValidHierarchy(newParent?.kind ?? null, node.kind);
 
     const newFullCode = newParent ? `${newParent.fullCode}-${node.code}` : node.code;
     const newPath = `${newParent?.path ?? '.'}${node.id}.`;

@@ -77,7 +77,7 @@ export class SettingsService implements OnModuleInit {
     updates: Partial<Record<SettingKey, unknown>>,
     userId?: string,
   ): Promise<LibrarySettings> {
-    const entries = Object.entries(updates) as Array<[string, unknown]>;
+    const entries = Object.entries(updates);
     if (entries.length === 0) return this.getAll();
 
     await this.prisma.$transaction(

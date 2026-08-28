@@ -81,7 +81,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       const res = exception.getResponse();
       const message =
         typeof res === 'object' && res !== null && 'message' in res
-          ? this.messageForStatus(status, (res as { message: unknown }).message)
+          ? this.messageForStatus(status, (res).message)
           : this.messageForStatus(status);
 
       return {
@@ -117,7 +117,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       typeof exception !== 'object' ||
       exception === null ||
       !('code' in exception) ||
-      typeof (exception as { code: unknown }).code !== 'string'
+      typeof (exception).code !== 'string'
     ) {
       return null;
     }
@@ -145,7 +145,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
           status: HttpStatus.CONFLICT,
           body: {
             code,
-            message: ERROR_MESSAGES_FA[code as keyof typeof ERROR_MESSAGES_FA],
+            message: ERROR_MESSAGES_FA[code],
             requestId,
           },
           logLevel: 'warn',
@@ -200,7 +200,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
     return typeof t === 'string' ? t : '';
   }
 
-  private codeForStatus(status: number): string {
+  /*
+   * پارامتر از نوع `HttpStatus` است نه `number`: مقدارها همان ثابت‌های
+   * وضعیت HTTP هستند و اعلام صریحش هم خودتوضیح است و هم جلوی مقایسه
+   * تصادفی با عدد دلخواه را می‌گیرد.
+   */
+  private codeForStatus(status: HttpStatus): string {
     switch (status) {
       case HttpStatus.UNAUTHORIZED: return ERROR_CODES.UNAUTHORIZED;
       case HttpStatus.FORBIDDEN: return ERROR_CODES.FORBIDDEN;
@@ -213,7 +218,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     }
   }
 
-  private messageForStatus(status: number, raw?: unknown): string {
+  private messageForStatus(status: HttpStatus, raw?: unknown): string {
     // پیام‌های انگلیسی داخلی NestJS ("Cannot POST /x") به کاربر نمایش داده نمی‌شود.
     switch (status) {
       case HttpStatus.UNAUTHORIZED: return ERROR_MESSAGES_FA.UNAUTHORIZED;

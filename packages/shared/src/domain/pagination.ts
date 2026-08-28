@@ -38,6 +38,18 @@ export function buildPageMeta(page: number, pageSize: number, total: number, est
 export interface ApiErrorBody {
   code: string;
   message: string;
-  details?: Record<string, string[]> | unknown;
+  /**
+   * جزئیات ماشین‌خوان خطا.
+   *
+   * برای `VALIDATION_FAILED` نگاشت «نام فیلد → پیام‌های فارسی» است
+   * (`Record<string, string[]>`)، و برای خطاهای دیگر شکل مخصوص خودش —
+   * مثلاً `{ violations: [...] }` وقتی قوانین امانت اجازه نمی‌دهند.
+   *
+   * پیش‌تر اینجا `Record<string, string[]> | unknown` نوشته شده بود که
+   * دقیقاً همین `unknown` است؛ `unknown` هر Union را می‌بلعد. حالا صریح
+   * نوشته می‌شود تا کسی گمان نکند ایمنی نوعی‌ای در کار است: مصرف‌کننده
+   * باید پیش از استفاده، شکل را بررسی کند.
+   */
+  details?: unknown;
   requestId?: string;
 }

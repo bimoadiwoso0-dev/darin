@@ -346,6 +346,7 @@ function renderValue(value: unknown): React.ReactNode {
       </code>
     );
   }
+  // eslint-disable-next-line @typescript-eslint/no-base-to-string -- حالت شیء در شرط بالا با JSON.stringify پاسخ داده شده
   const text = String(value);
   // تاریخ ISO را شمسی نشان می‌دهیم؛ رشته خام برای کاربر بی‌معناست
   if (/^\d{4}-\d{2}-\d{2}T/.test(text)) return formatDateTime(text);

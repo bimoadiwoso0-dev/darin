@@ -355,8 +355,8 @@ export class MembersService {
       entityType: 'Member',
       entityId: id,
       entityLabel: `${before.firstName} ${before.lastName} (${before.memberCode})`,
-      before: before as unknown as Record<string, unknown>,
-      after: input as Record<string, unknown>,
+      before: before,
+      after: input,
       user,
       ip,
     });

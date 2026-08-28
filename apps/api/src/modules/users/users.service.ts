@@ -249,8 +249,8 @@ export class UsersService {
       entityType: 'User',
       entityId: id,
       entityLabel: before.fullName,
-      before: { ...before, roles: before.roles.map((r) => r.role.key) } as never,
-      after: { ...after, roles: after.roles.map((r) => r.key) } as never,
+      before: { ...before, roles: before.roles.map((r) => r.role.key) },
+      after: { ...after, roles: after.roles.map((r) => r.key) },
       user: actor,
       ip,
     });

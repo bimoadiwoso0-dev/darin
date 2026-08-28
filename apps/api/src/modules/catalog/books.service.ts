@@ -329,8 +329,8 @@ export class BooksService {
       entityType: 'Book',
       entityId: id,
       entityLabel: before.title,
-      before: before as unknown as Record<string, unknown>,
-      after: { ...this.scalarFields(input), isbn13 } as Record<string, unknown>,
+      before: before,
+      after: { ...this.scalarFields(input), isbn13 },
       user,
       ip,
     });

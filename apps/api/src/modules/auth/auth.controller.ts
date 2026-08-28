@@ -196,7 +196,12 @@ function readTokenMode(req: Request): string | undefined {
 }
 
 function readRefreshToken(req: Request): string | undefined {
-  const cookies = (req as Request & { cookies?: Record<string, string> }).cookies;
+  /*
+   * `cookie-parser` نوع `req.cookies` را در تعریف‌های Express به `any`
+   * گسترش می‌دهد، و اشتراک با `any` باز هم `any` می‌شود. تبدیل از
+   * `unknown` این را می‌شکند و شکل واقعی کوکی‌ها را تحمیل می‌کند.
+   */
+  const cookies = (req as unknown as { cookies?: Record<string, string> }).cookies;
   const fromCookie = cookies?.[REFRESH_COOKIE];
   if (fromCookie) return fromCookie;
 

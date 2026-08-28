@@ -71,7 +71,7 @@ export function LoginPage() {
         </div>
 
         <Card className="p-5">
-          <form onSubmit={onSubmit} className="space-y-4" noValidate>
+          <form onSubmit={(e) => void onSubmit(e)} className="space-y-4" noValidate>
             <Field label="نام کاربری" htmlFor="username" required>
               <Input
                 id="username"

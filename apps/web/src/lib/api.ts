@@ -42,7 +42,9 @@ export class ApiError extends Error {
   get violations(): Array<{ code: string; message: string; overridable: boolean }> {
     if (typeof this.details !== 'object' || this.details === null) return [];
     const v = (this.details as { violations?: unknown }).violations;
-    return Array.isArray(v) ? v : [];
+    if (!Array.isArray(v)) return [];
+    // `Array.isArray` فقط می‌گوید آرایه است، نه آرایه‌ی چه چیزی
+    return v as Array<{ code: string; message: string; overridable: boolean }>;
   }
 }
 
@@ -89,6 +91,7 @@ function buildUrl(path: string, params?: Record<string, unknown>): string {
       } else if (value instanceof Date) {
         url.searchParams.set(key, value.toISOString());
       } else {
+        // eslint-disable-next-line @typescript-eslint/no-base-to-string -- آرایه و Date بالاتر جدا شده‌اند؛ اینجا فقط مقدار ساده می‌ماند
         url.searchParams.set(key, String(value));
       }
     }

@@ -16,8 +16,7 @@
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -p tsconfig.json --watch --preserveWatchOutput",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run",
-    "lint": "echo 'no lint configured for shared'"
+    "test": "vitest run"
   },
   "devDependencies": {
     "typescript": "^5.9.3",

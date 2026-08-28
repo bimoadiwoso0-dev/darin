@@ -72,7 +72,12 @@ export class JwtAuthGuard implements CanActivate {
 }
 
 function extractToken(request: Request): string | null {
-  const cookies = (request as Request & { cookies?: Record<string, string> }).cookies;
+  /*
+   * `cookie-parser` نوع `req.cookies` را در تعریف‌های Express به `any`
+   * گسترش می‌دهد، و اشتراک با `any` باز هم `any` می‌شود. تبدیل از
+   * `unknown` این را می‌شکند و شکل واقعی کوکی‌ها را تحمیل می‌کند.
+   */
+  const cookies = (request as unknown as { cookies?: Record<string, string> }).cookies;
   const fromCookie = cookies?.[ACCESS_COOKIE];
   if (fromCookie) return fromCookie;
 

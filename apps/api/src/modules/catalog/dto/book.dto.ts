@@ -12,7 +12,7 @@ export const ContributorSchema = z
   .object({
     personId: z.string().uuid().optional(),
     fullName: z.string().min(2, 'نام پدیدآورنده باید حداقل ۲ نویسه باشد.').max(200).optional(),
-    role: z.enum(contributorRoles as [string, ...string[]]),
+    role: z.enum(contributorRoles),
     position: z.number().int().min(0).max(50).optional(),
   })
   .refine((c) => c.personId || c.fullName, {
@@ -42,7 +42,7 @@ export const CreateBookSchema = z.object({
   publisherName: z.string().max(200).nullable().optional(),
   publicationPlace: z.string().max(120).nullable().optional(),
   publicationYear,
-  publicationCalendar: z.enum(calendars as [string, ...string[]]).optional(),
+  publicationCalendar: z.enum(calendars).optional(),
   edition: z.number().int().min(1).max(500).nullable().optional(),
   editionNote: z.string().max(200).nullable().optional(),
 
@@ -52,8 +52,8 @@ export const CreateBookSchema = z.object({
 
   language: z.string().max(12).optional(),
   pageCount: z.number().int().min(1).max(50_000).nullable().optional(),
-  format: z.enum(bookFormats as [string, ...string[]]).nullable().optional(),
-  bindingType: z.enum(bindingTypes as [string, ...string[]]).nullable().optional(),
+  format: z.enum(bookFormats).nullable().optional(),
+  bindingType: z.enum(bindingTypes).nullable().optional(),
 
   summary: z.string().max(5000).nullable().optional(),
   description: z.string().max(20_000).nullable().optional(),

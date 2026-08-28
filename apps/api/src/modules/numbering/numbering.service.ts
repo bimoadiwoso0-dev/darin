@@ -230,7 +230,7 @@ export class NumberingService {
    * اولین شماره خودکارِ بعدی با رکوردهای موجود تداخل می‌کند.
    */
   async syncSequences(onlyKeys?: string[]): Promise<SequenceSyncResult[]> {
-    const results = await syncNumberingSequences(this.prisma as never, {
+    const results = await syncNumberingSequences(this.prisma, {
       onlyKeys,
       solarYear: currentJalaliYear(),
       solarMonth: currentJalaliMonth(),

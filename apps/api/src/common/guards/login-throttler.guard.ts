@@ -31,6 +31,8 @@ export class LoginThrottlerGuard extends ThrottlerGuard {
     super(options, storageService, reflector);
   }
 
+  // امضای `async` از کلاس پایه `ThrottlerGuard` می‌آید و قابل تغییر نیست
+  // eslint-disable-next-line @typescript-eslint/require-await
   protected async getTracker(req: Record<string, unknown>): Promise<string> {
     /*
      * ردیابی بر پایه IP **و** نام کاربری.
@@ -46,6 +48,7 @@ export class LoginThrottlerGuard extends ThrottlerGuard {
     return `login:${ip}:${username}`;
   }
 
+  // eslint-disable-next-line @typescript-eslint/require-await
   protected async getThrottlerOptions(): Promise<{ limit: number; ttl: number }> {
     return {
       limit: this.config.get<number>('RATE_LIMIT_LOGIN_MAX', 10),

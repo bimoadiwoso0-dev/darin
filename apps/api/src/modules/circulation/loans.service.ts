@@ -111,7 +111,7 @@ export class LoansService {
     if (blocking.length > 0) {
       const canOverride = violations.every((v) => v.overridable);
       throw new DomainError(
-        blocking[0]!.code as never,
+        blocking[0].code as never,
         blocking.map((v) => v.message).join(' '),
         {
           violations,
@@ -529,7 +529,7 @@ export class LoansService {
     const blocking = violations.filter((v) => !v.overridable || !options.override);
     if (blocking.length > 0) {
       throw new DomainError(
-        blocking[0]!.code as never,
+        blocking[0].code as never,
         blocking.map((v) => v.message).join(' '),
         {
           violations,

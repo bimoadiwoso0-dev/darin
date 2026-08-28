@@ -111,7 +111,7 @@ export class LoansController {
     @CurrentUser() user: AuthenticatedUser,
     @ClientIp() ip: string,
   ) {
-    return this.loans.checkout(body as never, user, ip);
+    return this.loans.checkout(body, user, ip);
   }
 
   /** بازگشت با یک اسکن — سریع‌ترین مسیر (قانون ۹۰). */
@@ -184,7 +184,7 @@ export class ReservationsController {
     })))
     query: Record<string, unknown>,
   ) {
-    return this.reservations.list(query as never);
+    return this.reservations.list(query);
   }
 
   @Get('queue/:bookId')
@@ -253,7 +253,7 @@ export class FinesController {
     })))
     query: Record<string, unknown>,
   ) {
-    return this.fines.list(query as never);
+    return this.fines.list(query);
   }
 
   @Get('member/:memberId/summary')

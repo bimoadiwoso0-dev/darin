@@ -207,6 +207,7 @@ function formatValue(value: unknown, type?: ExportColumn['type']): string | numb
   if (value === null || value === undefined) return '';
 
   if (type === 'date') {
+    // eslint-disable-next-line @typescript-eslint/no-base-to-string -- مقدار نامعتبر به Invalid Date می‌رسد و پایین‌تر به رشته خالی تبدیل می‌شود
     const date = value instanceof Date ? value : new Date(String(value));
     if (Number.isNaN(date.getTime())) return '';
     // تاریخ شمسی به‌صورت متن — Excel تقویم شمسی ندارد و اگر Date بدهیم،
@@ -222,6 +223,7 @@ function formatValue(value: unknown, type?: ExportColumn['type']): string | numb
   if (value instanceof Date) return value.toISOString();
   if (Array.isArray(value)) return value.join('، ');
   if (typeof value === 'object') return JSON.stringify(value);
+  // eslint-disable-next-line @typescript-eslint/no-base-to-string -- آرایه و شیء بالاتر جدا شده‌اند
   return String(value);
 }
 
