@@ -96,7 +96,7 @@ export const PERMISSIONS: readonly PermissionDef[] = [
   { key: 'settings.manage', group: 'system', label: 'تغییر تنظیمات' },
   { key: 'audit.view', group: 'system', label: 'مشاهده گزارش فعالیت‌ها' },
   { key: 'backup.manage', group: 'system', label: 'پشتیبان‌گیری و بازیابی' },
-  { key: 'notifications.manage', group: 'system', label: 'مدیریت اعلان‌ها' },
+  { key: 'notifications.manage', group: 'system', label: 'پیگیری و بستن یادآوری‌ها' },
 ] as const;
 
 export const PERMISSION_KEYS = PERMISSIONS.map((p) => p.key);
@@ -133,7 +133,7 @@ export const SYSTEM_ROLES = {
       'loans.view', 'loans.create', 'loans.return', 'loans.renew',
       'reservations.view', 'reservations.manage', 'lost.manage',
       'fines.view', 'fines.create', 'fines.collect',
-      'inventory.view', 'reports.view',
+      'inventory.view', 'reports.view', 'notifications.manage',
     ],
   },
   ASSISTANT: {
@@ -143,7 +143,7 @@ export const SYSTEM_ROLES = {
     permissions: [
       'dashboard.view', 'books.view', 'copies.view', 'locations.view',
       'members.view', 'loans.view', 'loans.create', 'loans.return', 'loans.renew',
-      'reservations.view', 'fines.view',
+      'reservations.view', 'fines.view', 'notifications.manage',
     ],
   },
   INVENTORY_MANAGER: {

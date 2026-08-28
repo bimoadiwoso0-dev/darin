@@ -13,8 +13,11 @@ import { NotificationsService } from './notifications.service';
 /**
  * یادآوری‌های کتابدار.
  *
- * مجوز `loans.view` است، نه مجوز تازه: همه یادآوری‌های امروز درباره امانت
- * هستند و هر کسی که امانت‌ها را می‌بیند باید فهرست پیگیری را هم ببیند.
+ * ── چرا خواندن و نوشتن دو مجوز جدا دارند ────────────────────────────────
+ * دیدن فهرست با `loans.view` است: هر کسی که امانت‌ها را می‌بیند باید
+ * بتواند فهرست پیگیری را هم ببیند. اما «پیگیری شد» زدن یعنی ادعای انجام
+ * کار، و نقش «ناظر گزارش‌ها» که `loans.view` دارد نباید بتواند وضعیت را
+ * تغییر دهد. پس نوشتن `notifications.manage` می‌خواهد.
  */
 @ApiTags('یادآوری‌ها')
 @Controller('notifications')
@@ -37,7 +40,7 @@ export class NotificationsController {
 
   @Post(':id/handled')
   @HttpCode(200)
-  @RequirePermissions('loans.view')
+  @RequirePermissions('notifications.manage')
   @ApiOperation({ summary: 'علامت زدن یادآوری به‌عنوان انجام‌شده' })
   handled(
     @Param('id', ParseUUIDPipe) id: string,
@@ -49,7 +52,7 @@ export class NotificationsController {
 
   @Post(':id/dismiss')
   @HttpCode(200)
-  @RequirePermissions('loans.view')
+  @RequirePermissions('notifications.manage')
   @ApiOperation({ summary: 'انصراف از یادآوری' })
   dismiss(
     @Param('id', ParseUUIDPipe) id: string,
@@ -61,7 +64,7 @@ export class NotificationsController {
 
   @Post('handle-all')
   @HttpCode(200)
-  @RequirePermissions('loans.view')
+  @RequirePermissions('notifications.manage')
   @ApiOperation({ summary: 'علامت زدن گروهی یادآوری‌های انجام‌نشده' })
   handleAll(
     @Body(zodBody(MarkAllSchema)) body: z.infer<typeof MarkAllSchema>,

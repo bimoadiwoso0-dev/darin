@@ -107,7 +107,7 @@ export function NotificationsPage() {
     onError: (error) => toast.apiError(error, 'علامت زدن گروهی ممکن نشد'),
   });
 
-  const canAct = can('loans.view');
+  const canAct = can('notifications.manage');
   const pending = summary?.pending ?? 0;
 
   return (

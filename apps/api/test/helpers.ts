@@ -35,6 +35,19 @@ export async function createTestApp(): Promise<TestContext> {
   await app.init();
 
   const prisma = app.get(PrismaService);
+
+  /*
+   * همگام‌سازی مجوزها و نقش‌ها با تعریف کد، پیش از هر تست.
+   *
+   * بدون این، افزودن یک مجوز تازه به `SYSTEM_ROLES` باعث می‌شد تست‌ها
+   * با ۴۰۳ رد شوند تا وقتی کسی دستی `db:seed` را روی دیتابیس تست بزند —
+   * شکستی که علتش هیچ ربطی به تغییر کد نداشت و پیدا کردنش وقت می‌برد.
+   * هر دو تابع فقط upsert می‌کنند، پس اجرای دوباره‌شان بی‌خطر است.
+   */
+  const { seedPermissions, seedRoles } = await import('../prisma/seed-core');
+  await seedPermissions(prisma as never);
+  await seedRoles(prisma as never);
+
   return {
     app,
     prisma,
