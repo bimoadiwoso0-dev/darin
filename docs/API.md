@@ -95,7 +95,7 @@ curl -b jar.txt https://library.example.ir/api/books
 | `POST /books` | `books.create` | ثبت کتاب |
 | `PATCH /books/:id` | `books.edit` | ویرایش |
 | `POST /books/check-duplicate` | `books.create` | تشخیص تکراری پیش از ثبت |
-| `POST /books/bulk-update` | `books.edit` | ویرایش گروهی |
+| `POST /books/bulk-update` | `books.bulk_edit` | ویرایش گروهی |
 | `DELETE /books/:id` | `books.delete` | بایگانی (حذف نرم) |
 | `POST /books/:id/restore` | `books.delete` | بازگرداندن از بایگانی |
 
@@ -123,10 +123,11 @@ curl -b jar.txt https://library.example.ir/api/books
 | `GET /copies/by-barcode/:barcode` | `copies.view` | **پرتکرارترین کوئری میز امانت** |
 | `GET /copies/by-qr/:token` | `copies.view` | اسکن QR |
 | `GET /copies/next-numbers` | `copies.create` | شماره ثبت/اموال بعدی |
+| `GET /labels/books` · `/labels/shelf/:id` | `labels.print` | برچسب و بارکد |
 | `POST /copies` | `copies.create` | افزودن نسخه |
-| `PATCH /copies/:id/status` | `copies.edit` | تغییر وضعیت |
+| `PATCH /copies/:id/status` | `copies.change_status` | تغییر وضعیت |
 | `POST /copies/move` | `copies.move` | جابه‌جایی به مکان دیگر |
-| `POST /copies/bulk-status` | `copies.edit` | تغییر وضعیت گروهی |
+| `POST /copies/bulk-status` | `copies.change_status` | تغییر وضعیت گروهی |
 
 ---
 
@@ -139,9 +140,10 @@ curl -b jar.txt https://library.example.ir/api/books
 | `POST /loans/checkout` | `loans.create` | ثبت امانت |
 | `POST /loans/return` | `loans.return` | بازگشت با بارکد |
 | `POST /loans/:id/renew` | `loans.renew` | تمدید |
-| `GET /reservations` · `POST /reservations` | `reservations.*` | رزرو |
-| `GET /fines` · `POST /fines/:id/pay` | `fines.*` | جریمه و پرداخت |
+| `GET /reservations` · `POST /reservations` | `reservations.view` / `reservations.manage` | رزرو |
+| `GET /fines` · `POST /fines/:id/pay` | `fines.view` / `fines.collect` | جریمه و پرداخت |
 | `GET /notifications` | `loans.view` | صندوق یادآوری کتابدار |
+| `POST /notifications/:id/handled` | `notifications.manage` | علامت زدن پیگیری |
 
 ### امانت هم‌زمان یک نسخه
 
@@ -202,7 +204,7 @@ curl -b jar.txt https://library.example.ir/api/books
 
 ```
 POST /imports/upload      → آپلود فایل، تشخیص ستون‌ها
-PUT  /imports/:id/mapping → نگاشت ستون فایل به فیلد سیستم
+POST /imports/:id/mapping → نگاشت ستون فایل به فیلد سیستم
 POST /imports/:id/validate→ اعتبارسنجی بدون نوشتن — گزارش خطای سطر به سطر
 POST /imports/:id/execute → نوشتن واقعی
 ```
@@ -216,13 +218,13 @@ POST /imports/:id/execute → نوشتن واقعی
 
 | مسیر | مجوز | کار |
 |------|------|-----|
-| `GET /users` · `POST /users` | `users.*` | کاربران |
+| `GET /users` · `POST /users` | `users.view` / `users.manage` | کاربران |
 | `POST /users/:id/revoke-sessions` | `users.manage` | قطع همه نشست‌ها |
-| `GET /roles` · `GET /roles/permissions` | `roles.*` | نقش و مجوز |
-| `GET /settings` · `PUT /settings` | `settings.*` | تنظیمات |
+| `GET /roles` · `GET /roles/permissions` | `roles.manage` | نقش و مجوز |
+| `GET /settings` · `PUT /settings` | `settings.view` / `settings.manage` | تنظیمات |
 | `GET /audit-logs` | `audit.view` | گزارش عملیات |
-| `GET /backups` · `POST /backups` | `backup.*` | پشتیبان‌گیری |
-| `POST /backups/:id/restore` | `backup.restore` | بازیابی (نیازمند تأیید متنی) |
+| `GET /backups` · `POST /backups` | `backup.manage` | پشتیبان‌گیری |
+| `POST /backups/:id/restore` | `backup.manage` | بازیابی (نیازمند تأیید متنی) |
 | `POST /maintenance/run` | `settings.manage` | اجرای فوری کارهای شبانه |
 
 ---
