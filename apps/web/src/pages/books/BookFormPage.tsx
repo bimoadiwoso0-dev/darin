@@ -4,7 +4,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, Plus, Save, Trash2, X } from 'lucide-react';
 import {
   BINDING_TYPE, BOOK_FORMAT, CONTRIBUTOR_ROLE, LANGUAGES,
-  currentJalaliYear, toCanonicalIsbn13,
+  currentJalaliYear, persianWordsToDigits, persianWordsToNumber, toCanonicalIsbn13,
+  type DictatedBook,
 } from '@darin/shared';
 import { api, ApiError } from '@/lib/api';
 import { useToast } from '@/lib/toast';
@@ -14,6 +15,8 @@ import {
 import { PageHeader } from '@/components/layout/AppShell';
 import { EntityPicker } from '@/components/shared/EntityPicker';
 import { CategoryPicker } from '@/components/shared/CategoryPicker';
+import { MicButton } from '@/components/shared/MicButton';
+import { VoiceEntryPanel } from '@/components/books/VoiceEntryPanel';
 import { toPersianDigits } from '@/lib/format';
 
 interface ContributorDraft {
@@ -166,6 +169,58 @@ export function BookFormPage() {
       delete next[key as string];
       return next;
     });
+  };
+
+  /**
+   * نتیجه دیکته را روی فرم می‌نشاند.
+   *
+   * ── چرا مقدار موجود پاک نمی‌شود ───────────────────────────────────────
+   * کتابدار ممکن است چند فیلد را تایپ کرده و بقیه را بگوید. دیکته فقط
+   * فیلدهایی را پر می‌کند که واقعاً گفته شده‌اند؛ بقیه دست‌نخورده می‌مانند.
+   * پدیدآورندگان هم افزوده می‌شوند، نه جایگزین — مگر اینکه ردیف خالیِ
+   * تازه‌ساخته باشند.
+   */
+  const applyDictation = (parsed: DictatedBook) => {
+    setForm((f) => {
+      const next = { ...f };
+      for (const [field, value] of Object.entries(parsed.text)) {
+        if (value) next[field as keyof FormState] = value as never;
+      }
+      for (const [field, value] of Object.entries(parsed.numbers)) {
+        next[field as keyof FormState] = String(value) as never;
+      }
+      if (parsed.isbn) next.isbn = parsed.isbn;
+      if (parsed.language) next.language = parsed.language;
+
+      /*
+       * نام ناشر به‌صورت متن می‌نشیند، نه شناسه: ممکن است ناشری با این نام
+       * در پایگاه داده نباشد و سرور خودش بسازدش. اگر شناسه‌ای از قبل
+       * انتخاب شده بود، کنار می‌رود تا نام گفته‌شده اثر کند.
+       */
+      if (parsed.text.publisherName) {
+        next.publisherId = null;
+        next.publisherLabel = parsed.text.publisherName;
+        next.publisherName = parsed.text.publisherName;
+      }
+      return next;
+    });
+
+    if (parsed.contributors.length > 0) {
+      setContributors((list) => {
+        const kept = list.filter((c) => c.fullName.trim() || c.personId);
+        return [
+          ...kept,
+          ...parsed.contributors.map((c, index) => ({
+            key: `voice-${Date.now()}-${index}`,
+            personId: null,
+            fullName: c.fullName,
+            role: c.role,
+          })),
+        ];
+      });
+    }
+
+    setErrors({});
   };
 
   // ── تشخیص تکراری (قانون ۴۱) ─────────────────────────────────────────
@@ -353,6 +408,10 @@ export function BookFormPage() {
         </Card>
       ) : null}
 
+      {/* ثبت با گفتار — فقط در حالت ثبت جدید؛ هنگام ویرایش، جایگزینی گروهی
+          مقادیر موجود بیش از آنکه کمک کند، خطرناک است. */}
+      {!isEdit ? <VoiceEntryPanel onApply={applyDictation} /> : null}
+
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
           <Card>
@@ -363,6 +422,15 @@ export function BookFormPage() {
                   id="title" value={form.title} autoFocus
                   onChange={(e) => set('title', e.target.value)}
                   invalid={!!errors.title}
+                  suffix={
+                    <MicButton
+                      fieldLabel="عنوان"
+                      // افزوده می‌شود، نه جایگزین: بخشی ممکن است تایپ شده باشد
+                      onTranscript={(text) =>
+                        set('title', form.title ? `${form.title} ${text}` : text)
+                      }
+                    />
+                  }
                 />
               </Field>
 
@@ -500,6 +568,17 @@ export function BookFormPage() {
                     type="number" ltr value={form.publicationYear}
                     onChange={(e) => set('publicationYear', e.target.value)}
                     invalid={!!errors.publicationYear}
+                    suffix={
+                      <MicButton
+                        fieldLabel="سال انتشار"
+                        // «هزار و سیصد و نود و نه» → «۱۳۹۹»
+                        transform={(text) => {
+                          const value = persianWordsToNumber(text);
+                          return value === null ? '' : String(value);
+                        }}
+                        onTranscript={(text) => set('publicationYear', text)}
+                      />
+                    }
                   />
                   <Select
                     value={form.publicationCalendar}
@@ -531,7 +610,22 @@ export function BookFormPage() {
             <CardHeader title="چکیده و توضیحات" />
             <div className="space-y-4 p-4">
               <Field label="چکیده" hint="یکی دو جمله درباره محتوای کتاب">
-                <Textarea value={form.summary} onChange={(e) => set('summary', e.target.value)} rows={3} />
+                <div className="relative">
+                  <Textarea
+                    value={form.summary}
+                    onChange={(e) => set('summary', e.target.value)}
+                    rows={3}
+                    className="pe-10"
+                  />
+                  <span className="absolute end-2 top-2">
+                    <MicButton
+                      fieldLabel="چکیده"
+                      onTranscript={(text) =>
+                        set('summary', form.summary ? `${form.summary} ${text}` : text)
+                      }
+                    />
+                  </span>
+                </div>
               </Field>
               <Field label="توضیحات کامل">
                 <Textarea value={form.description} onChange={(e) => set('description', e.target.value)} rows={5} />
@@ -561,6 +655,18 @@ export function BookFormPage() {
                   onChange={(e) => set('isbn', e.target.value)}
                   invalid={isbnInvalid || !!errors.isbn}
                   placeholder="978-964-..."
+                  suffix={
+                    <MicButton
+                      fieldLabel="شابک"
+                      /*
+                       * شابک را کسی به‌صورت عدد نمی‌خواند، رقم به رقم
+                       * می‌گوید. `persianWordsToNumber` این را جمع می‌زد و
+                       * عدد بی‌معنایی می‌ساخت.
+                       */
+                      transform={persianWordsToDigits}
+                      onTranscript={(text) => set('isbn', form.isbn + text)}
+                    />
+                  }
                 />
               </Field>
 
@@ -597,6 +703,16 @@ export function BookFormPage() {
                 <Input
                   type="number" min={1} ltr value={form.pageCount}
                   onChange={(e) => set('pageCount', e.target.value)}
+                  suffix={
+                    <MicButton
+                      fieldLabel="تعداد صفحه"
+                      transform={(text) => {
+                        const value = persianWordsToNumber(text);
+                        return value === null ? '' : String(value);
+                      }}
+                      onTranscript={(text) => set('pageCount', text)}
+                    />
+                  }
                 />
               </Field>
 

@@ -39,9 +39,16 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 }
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = 'secondary', size = 'md', loading, icon, children, disabled, ...props }, ref) => (
+  ({ className, variant = 'secondary', size = 'md', loading, icon, children, disabled, type, ...props }, ref) => (
     <button
       ref={ref}
+      /*
+       * پیش‌فرض HTML برای `<button>` داخل فرم، `submit` است. یعنی هر دکمه
+       * فرعی داخل یک فرم — «افزودن پدیدآورنده»، «پاک کردن»، دکمه
+       * میکروفون — فرم را ثبت می‌کرد. همه دکمه‌های ثبت در این پروژه
+       * `type="submit"` صریح دارند، پس پیش‌فرض امن اینجاست.
+       */
+      type={type ?? 'button'}
       // دکمه در حال بارگذاری غیرفعال است تا کتابدار دو بار امانت ثبت نکند
       disabled={disabled || loading}
       className={cn(
@@ -94,14 +101,22 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           'disabled:cursor-not-allowed disabled:bg-surface-sunken disabled:text-content-subtle',
           invalid ? 'border-danger focus:border-danger focus:ring-danger/25' : 'border-border',
           prefixIcon && 'ps-9',
-          suffix && 'pe-9',
+          /*
+           * فیلد `ltr` جهت خودش را دارد و هرگز برنمی‌گردد، پس جای افزونه
+           * با ویژگی فیزیکی تعیین می‌شود نه منطقی. بدون این، افزونه (مثل
+           * دکمه میکروفون) دقیقاً همان‌جا می‌نشست که ارقام شابک شروع
+           * می‌شوند و رویشان می‌افتاد.
+           */
+          suffix && (ltr ? 'pl-9' : 'pe-9'),
           ltr && 'field-ltr',
           className,
         )}
         {...props}
       />
       {suffix ? (
-        <span className="absolute end-3 text-content-subtle">{suffix}</span>
+        <span className={cn('absolute text-content-subtle', ltr ? 'left-2' : 'end-3')}>
+          {suffix}
+        </span>
       ) : null}
     </div>
   ),

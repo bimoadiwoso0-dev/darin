@@ -68,6 +68,25 @@ export function persianNormalize(input: string | null | undefined): string {
     .toLowerCase();
 }
 
+/**
+ * فقط نویسه‌های هم‌ارز را یکدست می‌کند: «ي»←«ی»، «ك»←«ک»، ارقام عربی‌هندی
+ * ← ASCII.
+ *
+ * سه تفاوت مهم با `persianNormalize`:
+ *
+ * ۱. **علائم نگارشی را نگه می‌دارد** — جایی لازم است که ویرگول خودش معنا
+ *    دارد، مثل تفکیک فیلدهای یک جمله دیکته‌شده.
+ * ۲. **نیم‌فاصله را نگه می‌دارد** — خروجی این تابع ممکن است مستقیم در
+ *    پایگاه داده ذخیره شود؛ «مگس‌ها» نباید به «مگسها» تبدیل شود.
+ * ۳. **طول رشته را تغییر نمی‌دهد** — هر نویسه با یک نویسه جایگزین می‌شود،
+ *    پس اندیس‌های متن اصلی و خروجی یکی می‌مانند و می‌توان روی خروجی
+ *    الگو یافت و از همان اندیس در متن برش زد.
+ */
+export function foldPersianLetters(input: string | null | undefined): string {
+  if (!input) return '';
+  return input.replace(FOLD_RE, (c) => FOLD_MAP[c] ?? c);
+}
+
 /** فقط ارقام را به ASCII تبدیل می‌کند — برای فیلدهای ISBN، بارکد و شماره تلفن. */
 export function normalizeDigits(input: string | null | undefined): string {
   if (!input) return '';
