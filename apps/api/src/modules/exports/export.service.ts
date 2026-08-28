@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { toPersianDigits } from '@darin/shared';
+import { formatJalaliDate } from '../../common/utils/jalali-format';
 import ExcelJS from 'exceljs';
 import type { Response } from 'express';
 import type { ReportDefinition } from '../reports/reports.service';
@@ -185,11 +186,11 @@ export class ExportService {
   ): Array<[string, string]> {
     const meta: Array<[string, string]> = [
       ['کتابخانه', libraryName],
-      ['تاریخ تولید', new Date().toLocaleDateString('fa-IR')],
+      ['تاریخ تولید', formatJalaliDate(new Date())],
     ];
     if (range?.from || range?.to) {
-      const from = range.from?.toLocaleDateString('fa-IR') ?? '—';
-      const to = range.to?.toLocaleDateString('fa-IR') ?? '—';
+      const from = formatJalaliDate(range.from);
+      const to = formatJalaliDate(range.to);
       meta.push(['بازه گزارش', `${from} تا ${to}`]);
     }
     return meta;
@@ -210,11 +211,7 @@ function formatValue(value: unknown, type?: ExportColumn['type']): string | numb
     if (Number.isNaN(date.getTime())) return '';
     // تاریخ شمسی به‌صورت متن — Excel تقویم شمسی ندارد و اگر Date بدهیم،
     // کاربر ایرانی تاریخ میلادی می‌بیند که برایش بی‌معناست.
-    return toPersianDigits(
-      new Intl.DateTimeFormat('fa-IR-u-ca-persian', {
-        year: 'numeric', month: '2-digit', day: '2-digit',
-      }).format(date),
-    );
+    return toPersianDigits(formatJalaliDate(date, ''));
   }
 
   if (type === 'money' || type === 'number') {

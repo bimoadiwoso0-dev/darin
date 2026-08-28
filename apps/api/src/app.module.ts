@@ -25,6 +25,7 @@ import { SearchModule } from './modules/search/search.module';
 import { HoldingsModule } from './modules/holdings/holdings.module';
 import { LocationsModule } from './modules/locations/locations.module';
 import { MembersModule } from './modules/members/members.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 import { NumberingModule } from './modules/numbering/numbering.module';
 import { HealthModule } from './modules/health/health.module';
 import { SettingsModule } from './modules/settings/settings.module';
@@ -107,6 +108,7 @@ import { UsersModule } from './modules/users/users.module';
     HealthModule,
 
     // ── ماژول‌های دامنه ──────────────────────────────────────────────
+    NotificationsModule,
     NumberingModule,
     LocationsModule,
     CatalogModule,

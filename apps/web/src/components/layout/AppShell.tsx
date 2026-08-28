@@ -28,16 +28,23 @@ export function AppShell() {
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
   const [shortcutsOpen, setShortcutsOpen] = React.useState(false);
 
-  /** نشانه‌های منو — رزروهای آماده تحویل و دیرکردها. */
+  /** نشانه‌های منو — رزروهای آماده تحویل، دیرکردها و یادآوری‌های پیگیری‌نشده. */
   const { data: badges } = useQuery({
     queryKey: ['dashboard', 'badges'],
     queryFn: async () => {
-      const summary = await api.get<{
-        circulation: { readyForPickup: number; overdueTotal: number };
-      }>('/dashboard');
+      // هر دو در یک رفت‌وبرگشت؛ دو درخواست جدا برای دو عدد، هزینه بیهوده است
+      const [summary, notices] = await Promise.all([
+        api.get<{ circulation: { readyForPickup: number; overdueTotal: number } }>('/dashboard'),
+        api
+          .get<{ pending: number }>('/notifications/summary')
+          // کاربری که مجوز امانت ندارد اینجا ۴۰۳ می‌گیرد؛ نبودِ نشانه
+          // نباید کل نوار کناری را خالی کند.
+          .catch(() => ({ pending: 0 })),
+      ]);
       return {
         readyReservations: summary.circulation.readyForPickup,
         overdue: summary.circulation.overdueTotal,
+        pendingNotices: notices.pending,
       };
     },
     // هر ۲ دقیقه — کافی برای اطلاع، بدون فشار بی‌دلیل روی سرور

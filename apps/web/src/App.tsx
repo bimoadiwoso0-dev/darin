@@ -55,6 +55,9 @@ const LoansListPage = React.lazy(() =>
 const ReservationsPage = React.lazy(() =>
   import('@/pages/circulation/ReservationsPage').then((m) => ({ default: m.ReservationsPage })),
 );
+const NotificationsPage = React.lazy(() =>
+  import('@/pages/circulation/NotificationsPage').then((m) => ({ default: m.NotificationsPage })),
+);
 const FinesPage = React.lazy(() =>
   import('@/pages/circulation/FinesPage').then((m) => ({ default: m.FinesPage })),
 );
@@ -379,6 +382,16 @@ export function App() {
               <RequirePermission permission="reservations.view">
                 <React.Suspense fallback={<RouteFallback />}>
                   <ReservationsPage />
+                </React.Suspense>
+              </RequirePermission>
+            }
+          />
+          <Route
+            path="notifications"
+            element={
+              <RequirePermission permission="loans.view">
+                <React.Suspense fallback={<RouteFallback />}>
+                  <NotificationsPage />
                 </React.Suspense>
               </RequirePermission>
             }

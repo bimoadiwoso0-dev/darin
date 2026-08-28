@@ -2,7 +2,7 @@ import * as React from 'react';
 import { NavLink } from 'react-router-dom';
 import type { PermissionKey } from '@darin/shared';
 import {
-  Archive, BarChart3, BookOpen, Bookmark, Boxes, Building2, ClipboardCheck,
+  Archive, BarChart3, BellRing, BookOpen, Bookmark, Boxes, Building2, ClipboardCheck,
   CreditCard, FileText, FolderTree, Landmark, LayoutDashboard, Library,
   ScanBarcode, Settings, Shield, Tags, Undo2, Users, UserCog, Wallet, X,
 } from 'lucide-react';
@@ -17,7 +17,7 @@ interface NavItem {
   permission?: PermissionKey;
   anyOf?: PermissionKey[];
   /** نشانه عددی (مثلاً تعداد رزروهای آماده تحویل) */
-  badgeKey?: 'readyReservations' | 'overdue';
+  badgeKey?: 'readyReservations' | 'overdue' | 'pendingNotices';
 }
 
 interface NavGroup {
@@ -47,6 +47,7 @@ const NAV_GROUPS: NavGroup[] = [
       { to: '/returns', label: 'بازگشت', icon: Undo2, permission: 'loans.return' },
       { to: '/reservations', label: 'رزروها', icon: Bookmark, permission: 'reservations.view', badgeKey: 'readyReservations' },
       { to: '/fines', label: 'جریمه‌ها', icon: Wallet, permission: 'fines.view' },
+      { to: '/notifications', label: 'یادآوری‌ها', icon: BellRing, permission: 'loans.view', badgeKey: 'pendingNotices' },
     ],
   },
   {
@@ -98,7 +99,7 @@ export function Sidebar({
 }: {
   open: boolean;
   onClose: () => void;
-  badges?: Partial<Record<'readyReservations' | 'overdue', number>>;
+  badges?: Partial<Record<NonNullable<NavItem['badgeKey']>, number>>;
 }) {
   const { can, canAny, user } = useAuth();
 

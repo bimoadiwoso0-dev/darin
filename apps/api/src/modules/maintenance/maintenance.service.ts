@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { SETTING_KEYS } from '@darin/shared';
+import { formatJalaliDate } from '../../common/utils/jalali-format';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { AuthService } from '../auth/auth.service';
 import { LoansService } from '../circulation/loans.service';
@@ -106,7 +107,7 @@ export class MaintenanceService {
         channel: 'IN_APP' as const,
         type: 'DUE_SOON' as const,
         title: 'یادآوری موعد بازگشت',
-        body: `موعد بازگشت «${loan.copy.book.title}» تاریخ ${loan.dueAt.toLocaleDateString('fa-IR')} است.`,
+        body: `موعد بازگشت «${loan.copy.book.title}» تاریخ ${formatJalaliDate(loan.dueAt)} است.`,
         payload: { loanId: loan.id },
         status: 'PENDING' as const,
       })),

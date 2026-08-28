@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { SETTING_KEYS, toPersianDigits } from '@darin/shared';
+import { formatJalaliDate } from '../../common/utils/jalali-format';
 import bwipjs from 'bwip-js';
 import QRCode from 'qrcode';
 import { ConfigService } from '@nestjs/config';
@@ -224,11 +225,7 @@ export class LabelsService {
       qrImage,
       libraryName: this.settings.get(SETTING_KEYS.LIBRARY_NAME),
       expiresAtFa: member.expiresAt
-        ? toPersianDigits(
-            new Intl.DateTimeFormat('fa-IR-u-ca-persian', {
-              year: 'numeric', month: '2-digit', day: '2-digit',
-            }).format(member.expiresAt),
-          )
+        ? toPersianDigits(formatJalaliDate(member.expiresAt, ''))
         : null,
     };
   }
