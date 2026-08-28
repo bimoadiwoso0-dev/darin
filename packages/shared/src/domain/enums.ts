@@ -202,3 +202,32 @@ export const NOTIFICATION_TYPE = {
   SYSTEM: 'پیام سیستم',
 } as const;
 export type NotificationType = keyof typeof NOTIFICATION_TYPE;
+
+/**
+ * زبان‌های متداول مجموعه.
+ *
+ * کد ISO 639-1 ذخیره می‌شود (همان چیزی که در ستون `language` می‌نشیند)
+ * و برچسب فارسی فقط برای نمایش است. فهرست عمداً کوتاه است — این زبان‌ها
+ * ۹۹٪ مجموعه یک کتابخانه ایرانی را پوشش می‌دهند. هر کد دیگری هم در
+ * دیتابیس پذیرفته می‌شود و همان‌طور که هست نمایش داده خواهد شد.
+ */
+export const LANGUAGES = {
+  fa: 'فارسی',
+  ar: 'عربی',
+  en: 'انگلیسی',
+  fr: 'فرانسوی',
+  de: 'آلمانی',
+  tr: 'ترکی',
+  ru: 'روسی',
+  es: 'اسپانیایی',
+  ku: 'کردی',
+  ur: 'اردو',
+  other: 'سایر',
+} as const;
+export type LanguageCode = keyof typeof LANGUAGES;
+
+/** برچسب زبان — کد ناشناخته عیناً برگردانده می‌شود. */
+export function languageLabel(code: string | null | undefined): string {
+  if (!code) return '—';
+  return LANGUAGES[code as LanguageCode] ?? code;
+}

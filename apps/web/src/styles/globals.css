@@ -234,6 +234,36 @@
   thead { display: table-header-group; }
 
   a[href]::after { content: none !important; }
+
+  /*
+   * چاپ فقط یک ناحیه مشخص (برچسب، کارت عضویت، گزارش).
+   *
+   * روش `visibility` به‌جای `display` انتخاب شده چون ناحیه چاپی داخل یک
+   * دیالوگ است و والدهایش باید بمانند تا خودش هم بماند؛ `display: none`
+   * روی والد، فرزند را هم حذف می‌کند.
+   */
+  body.print-area-only *,
+  body.print-area-only .no-print { visibility: hidden !important; }
+
+  body.print-area-only .print-area,
+  body.print-area-only .print-area * { visibility: visible !important; }
+
+  body.print-area-only .print-area {
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline-start: 0;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+    box-shadow: none;
+    border: 0;
+  }
+
+  /* برچسب‌ها نباید وسط صفحه بشکنند و کادر راهنما نباید چاپ شود */
+  .label-item {
+    break-inside: avoid;
+    border: 0 !important;
+  }
 }
 
 .print-only { display: none; }
