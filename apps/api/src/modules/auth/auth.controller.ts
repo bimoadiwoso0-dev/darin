@@ -1,11 +1,13 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, Req, Res } from '@nestjs/common';
+import {
+  Body, Controller, Get, HttpCode, HttpStatus, Post, Req, Res, UseGuards,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Throttle } from '@nestjs/throttler';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { ClientIp, CurrentUser, Public, type AuthenticatedUser } from '../../common/decorators/auth.decorators';
 import { ACCESS_COOKIE, REFRESH_COOKIE } from '../../common/guards/jwt-auth.guard';
+import { LoginThrottlerGuard } from '../../common/guards/login-throttler.guard';
 import { zodBody } from '../../common/pipes/zod-validation.pipe';
 import { DomainError } from '../../common/errors/domain.error';
 import { ERROR_CODES } from '@darin/shared';
@@ -16,6 +18,12 @@ const LoginSchema = z.object({
   password: z.string().min(1, 'رمز عبور را وارد کنید.').max(200),
   /** «مرا به خاطر بسپار» — عمر کوکی را طولانی‌تر می‌کند */
   rememberMe: z.boolean().optional().default(false),
+  /*
+   * حالت پیش‌فرض `cookie` است: توکن فقط در کوکی HttpOnly می‌نشیند.
+   * کلاینت‌های بدون کوکی (اسکریپت، اپ موبایل) `bearer` می‌فرستند تا توکن
+   * در بدنه پاسخ هم بیاید.
+   */
+  tokenMode: z.enum(['cookie', 'bearer']).optional().default('cookie'),
 });
 
 const ChangePasswordSchema = z
@@ -46,8 +54,11 @@ export class AuthController {
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  // محدودیت سخت‌گیرانه‌تر از بقیه API — دفاع در برابر حدس رمز عبور
-  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  /*
+   * محدودیت سخت‌گیرانه‌تر از بقیه API — دفاع در برابر حدس رمز عبور.
+   * سقف از `RATE_LIMIT_LOGIN_MAX` خوانده می‌شود، نه از عددی ثابت در کد.
+   */
+  @UseGuards(LoginThrottlerGuard)
   @ApiOperation({ summary: 'ورود به سامانه' })
   async login(
     @Body(zodBody(LoginSchema)) body: z.infer<typeof LoginSchema>,
@@ -60,7 +71,7 @@ export class AuthController {
       userAgent: req.headers['user-agent'],
     });
     this.setAuthCookies(res, result, body.rememberMe);
-    return this.publicResult(result);
+    return this.publicResult(result, body.tokenMode === 'bearer');
   }
 
   @Public()
@@ -78,7 +89,7 @@ export class AuthController {
     try {
       const result = await this.auth.refresh(token, { ip, userAgent: req.headers['user-agent'] });
       this.setAuthCookies(res, result, true);
-      return this.publicResult(result);
+      return this.publicResult(result, readTokenMode(req) === 'bearer');
     } catch (err) {
       // نشست باطل شده — کوکی‌ها پاک می‌شوند تا مرورگر در حلقه تلاش نیفتد.
       this.clearAuthCookies(res);
@@ -153,17 +164,35 @@ export class AuthController {
   }
 
   /**
-   * پاسخ برای کلاینت.
-   * `accessToken` هم برگردانده می‌شود تا اپ موبایل آینده که کوکی ندارد بتواند
-   * از حالت Bearer استفاده کند. `refreshToken` **هرگز** در بدنه پاسخ نمی‌آید.
+   * بدنه پاسخ ورود و تازه‌سازی.
+   *
+   * ── چرا توکن به‌صورت پیش‌فرض در بدنه نیست ──────────────────────────────
+   * مرورگر توکن را از کوکی HttpOnly می‌گیرد و اصلاً به نسخه متنی آن نیاز
+   * ندارد. برگرداندنش در بدنه فقط یک نسخه اضافه می‌سازد که در حافظه
+   * صفحه، تب شبکه مرورگر و فایل‌های HAR که کاربر ممکن است برای پشتیبانی
+   * بفرستد باقی می‌ماند.
+   *
+   * کلاینت‌های غیرمرورگری (اسکریپت، اپ موبایل) که کوکی نگه نمی‌دارند،
+   * با `tokenMode: 'bearer'` صریحاً توکن را می‌خواهند و آن را در هدر
+   * `Authorization` می‌فرستند.
    */
-  private publicResult(result: LoginResult) {
+  private publicResult(result: LoginResult, includeToken = false) {
     return {
       user: result.user,
-      accessToken: result.accessToken,
       mustChangePassword: result.mustChangePassword,
+      ...(includeToken ? { accessToken: result.accessToken } : {}),
     };
   }
+}
+
+/**
+ * تشخیص اینکه کلاینت توکن متنی می‌خواهد یا نه.
+ * کلاینت‌های غیرمرورگری که با بدنه Refresh می‌کنند، همان‌جا هم اعلام
+ * می‌کنند که پاسخ باید شامل توکن باشد.
+ */
+function readTokenMode(req: Request): string | undefined {
+  const body = req.body as { tokenMode?: unknown } | undefined;
+  return typeof body?.tokenMode === 'string' ? body.tokenMode : undefined;
 }
 
 function readRefreshToken(req: Request): string | undefined {

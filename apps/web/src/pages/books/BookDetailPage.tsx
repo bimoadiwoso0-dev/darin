@@ -605,6 +605,13 @@ export function BookDetailPage() {
               «{book.title}» بایگانی می‌شود. رکورد از دیتابیس پاک نمی‌شود و تاریخچه
               امانت‌های آن دست‌نخورده می‌ماند؛ فقط از فهرست‌های عادی کنار می‌رود.
             </p>
+            {book.totalCopies > 0 ? (
+              <p className="mt-2 rounded border border-danger/30 bg-danger-soft px-2.5 py-1.5 text-danger-content">
+                این کتاب {toPersianDigits(book.totalCopies)} نسخه فیزیکی ثبت‌شده دارد و تا
+                زمانی که نسخه‌ها بایگانی نشوند، قابل بایگانی نیست. ابتدا نسخه‌ها را از
+                فهرست بالا بایگانی کنید.
+              </p>
+            ) : null}
             {book.activeLoans > 0 ? (
               <p className="mt-2 rounded border border-warning/30 bg-warning-soft px-2.5 py-1.5 text-warning-content">
                 توجه: {toPersianDigits(book.activeLoans)} نسخه از این کتاب هم‌اکنون در امانت است.

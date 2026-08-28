@@ -597,10 +597,21 @@ export class BooksService {
       };
     }
 
+    /*
+     * فیلتر موجودی.
+     *
+     * `hasCopies === false` باید «کتاب‌های بدون نسخه فیزیکی» را بدهد، نه
+     * اینکه مثل `undefined` نادیده گرفته شود. با `else if (query.hasCopies)`
+     * حالت `false` بی‌صدا از فیلتر می‌افتاد و گزینه «بدون نسخه فیزیکی» در
+     * رابط کاربری همه کتاب‌ها را برمی‌گرداند — فیلتری که وجود داشت اما
+     * کار نمی‌کرد.
+     */
     if (query.availableOnly) {
       where.copies = { some: { deletedAt: null, status: 'AVAILABLE' } };
-    } else if (query.hasCopies) {
+    } else if (query.hasCopies === true) {
       where.copies = { some: { deletedAt: null } };
+    } else if (query.hasCopies === false) {
+      where.copies = { none: { deletedAt: null } };
     }
 
     if (query.q) {
