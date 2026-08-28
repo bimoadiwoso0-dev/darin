@@ -91,6 +91,21 @@ const UsersPage = React.lazy(() =>
 const RolesPage = React.lazy(() =>
   import('@/pages/admin/RolesPage').then((m) => ({ default: m.RolesPage })),
 );
+const PersonsPage = React.lazy(() =>
+  import('@/pages/catalog/ReferenceDataPage').then((m) => ({ default: m.PersonsPage })),
+);
+const PublishersPage = React.lazy(() =>
+  import('@/pages/catalog/ReferenceDataPage').then((m) => ({ default: m.PublishersPage })),
+);
+const SeriesPage = React.lazy(() =>
+  import('@/pages/catalog/ReferenceDataPage').then((m) => ({ default: m.SeriesPage })),
+);
+const CategoriesPage = React.lazy(() =>
+  import('@/pages/catalog/CategoriesPage').then((m) => ({ default: m.CategoriesPage })),
+);
+const MembershipCardsPage = React.lazy(() =>
+  import('@/pages/members/MembershipCardsPage').then((m) => ({ default: m.MembershipCardsPage })),
+);
 
 function FullPageSpinner({ label }: { label: string }) {
   return (
@@ -493,6 +508,58 @@ export function App() {
               <RequirePermission permission="roles.manage">
                 <React.Suspense fallback={<RouteFallback />}>
                   <RolesPage />
+                </React.Suspense>
+              </RequirePermission>
+            }
+          />
+
+          {/* ── داده مرجع کاتالوگ ──────────────────────────────────── */}
+          <Route
+            path="authors"
+            element={
+              <RequirePermission permission="authors.view">
+                <React.Suspense fallback={<RouteFallback />}>
+                  <PersonsPage />
+                </React.Suspense>
+              </RequirePermission>
+            }
+          />
+          <Route
+            path="publishers"
+            element={
+              <RequirePermission permission="publishers.view">
+                <React.Suspense fallback={<RouteFallback />}>
+                  <PublishersPage />
+                </React.Suspense>
+              </RequirePermission>
+            }
+          />
+          <Route
+            path="categories"
+            element={
+              <RequirePermission permission="categories.view">
+                <React.Suspense fallback={<RouteFallback />}>
+                  <CategoriesPage />
+                </React.Suspense>
+              </RequirePermission>
+            }
+          />
+          <Route
+            path="series"
+            element={
+              <RequirePermission permission="books.view">
+                <React.Suspense fallback={<RouteFallback />}>
+                  <SeriesPage />
+                </React.Suspense>
+              </RequirePermission>
+            }
+          />
+          <Route
+            path="membership-cards"
+            element={
+              <RequirePermission permission="members.card">
+                <React.Suspense fallback={<RouteFallback />}>
+                  <MembershipCardsPage />
                 </React.Suspense>
               </RequirePermission>
             }
