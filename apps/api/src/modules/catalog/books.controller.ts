@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import {
@@ -34,6 +34,9 @@ export class BooksController {
    * روی مسیر جدا و با POST است چون عنوان می‌تواند طولانی باشد و در Query String نگنجد.
    */
   @Post('check-duplicate')
+  // چیزی ساخته نمی‌شود؛ POST فقط برای جا دادن عنوان طولانی در بدنه است.
+  // پیش‌فرض Nest برای POST کد ۲۰۱ است که اینجا معنای نادرستی می‌دهد.
+  @HttpCode(200)
   @RequirePermissions('books.create')
   @ApiOperation({ summary: 'یافتن کتاب‌های مشابه پیش از ثبت' })
   checkDuplicate(

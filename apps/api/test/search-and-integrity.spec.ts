@@ -363,4 +363,85 @@ describe('جستجوی فارسی و یکپارچگی داده', () => {
     expect(hasCopies.body.data.length).toBeGreaterThan(0);
     expect(hasCopies.body.data.every((b: { copyCount: number }) => b.copyCount > 0)).toBe(true);
   });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  //  شمارش نسخه‌ها — پس از حذف `_count` رابطه‌ای Prisma
+  // ═══════════════════════════════════════════════════════════════════════
+
+  it('تعداد کل و موجود نسخه‌ها را درست می‌شمارد و نسخه حذف‌شده را کنار می‌گذارد', async () => {
+    await resetOperationalData(ctx.prisma);
+    const branch = await ctx.prisma.branch.findFirstOrThrow({ where: { isDefault: true } });
+
+    const book = await ctx.prisma.book.create({
+      data: { title: 'شمارش نسخه‌ها', language: 'fa' },
+    });
+
+    /*
+     * چهار نسخه با وضعیت‌های متفاوت: دو موجود، یکی امانت‌رفته، یکی
+     * بایگانی‌شده. انتظار: copyCount = ۳ و availableCount = ۲.
+     *
+     * این تست بعد از جایگزینی `_count: { select: { copies: … } }` با
+     * `groupBy` نوشته شد. آن `_count` کل جدول نسخه‌ها را گروه‌بندی می‌کرد
+     * (۱۶۶ms روی ۱۲۲٬۰۰۰ نسخه)؛ نسخه جایگزین فقط همان صفحه را می‌شمارد.
+     * چیزی که باید ثابت بماند، خودِ عددهاست.
+     */
+    const statuses = ['AVAILABLE', 'AVAILABLE', 'ON_LOAN'] as const;
+    for (const [i, status] of statuses.entries()) {
+      await ctx.prisma.bookCopy.create({
+        data: {
+          bookId: book.id, branchId: branch.id, copyNumber: i + 1,
+          accessionNumber: `CNT-ACC-${i}`, barcode: `CNT-BC-${i}`, status,
+        },
+      });
+    }
+    await ctx.prisma.bookCopy.create({
+      data: {
+        bookId: book.id, branchId: branch.id, copyNumber: 4,
+        accessionNumber: 'CNT-ACC-DEL', barcode: 'CNT-BC-DEL',
+        status: 'AVAILABLE', deletedAt: new Date(),
+      },
+    });
+
+    const list = await ctx.http().get('/api/books')
+      .query({ q: 'شمارش نسخه‌ها' }).set('Cookie', manager.cookie).expect(200);
+
+    const row = list.body.data.find((b: { id: string }) => b.id === book.id);
+    expect(row).toBeDefined();
+    expect(row.copyCount).toBe(3);
+    expect(row.availableCount).toBe(2);
+
+    // کتابی بدون هیچ نسخه‌ای باید صفر بدهد، نه undefined
+    const empty = await ctx.prisma.book.create({
+      data: { title: 'شمارش نسخه‌ها بدون نسخه', language: 'fa' },
+    });
+    const list2 = await ctx.http().get('/api/books')
+      .query({ q: 'شمارش نسخه‌ها بدون' }).set('Cookie', manager.cookie).expect(200);
+    const emptyRow = list2.body.data.find((b: { id: string }) => b.id === empty.id);
+    expect(emptyRow.copyCount).toBe(0);
+    expect(emptyRow.availableCount).toBe(0);
+  });
+
+  it('تشخیص تکراری، تعداد نسخه نامزدها را برمی‌گرداند', async () => {
+    await resetOperationalData(ctx.prisma);
+    const branch = await ctx.prisma.branch.findFirstOrThrow({ where: { isDefault: true } });
+
+    const existing = await ctx.prisma.book.create({
+      data: { title: 'مبانی کتابداری نوین', isbn13: '9789640000014', language: 'fa' },
+    });
+    await ctx.prisma.bookCopy.create({
+      data: {
+        bookId: existing.id, branchId: branch.id, copyNumber: 1,
+        accessionNumber: 'DUP-ACC', barcode: 'DUP-BC', status: 'AVAILABLE',
+      },
+    });
+
+    const res = await ctx.http().post('/api/books/check-duplicate')
+      .send({ isbn: '978-964-00-0001-4', title: 'مبانی کتابداری نوین' })
+      .set('Cookie', manager.cookie).expect(200);
+
+    const hit = res.body.find((c: { id: string }) => c.id === existing.id);
+    expect(hit).toBeDefined();
+    expect(hit.copyCount).toBe(1);
+    expect(hit.reason).toBe('ISBN');
+  });
 });

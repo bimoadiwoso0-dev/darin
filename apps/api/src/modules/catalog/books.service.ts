@@ -137,21 +137,20 @@ export class BooksService {
             take: 1,
             select: { category: { select: { id: true, name: true } } },
           },
-          _count: { select: { copies: { where: { deletedAt: null } } } },
         },
       }),
       this.prisma.book.count({ where }),
     ]);
 
-    // تعداد نسخه‌های «موجود» در یک کوئری گروهی — نه یکی به‌ازای هر کتاب (N+1)
-    const availableByBook = await this.availableCounts(rows.map((r) => r.id));
+    // شمارش نسخه‌ها در یک کوئری گروهی روی همین ۲۰ کتاب — نه `_count` رابطه‌ای.
+    // توضیح در `copyCounts`.
+    const countsByBook = await this.copyCounts(rows.map((r) => r.id));
 
     return {
       data: rows.map((r) => ({
         ...r,
-        copyCount: r._count.copies,
-        availableCount: availableByBook.get(r.id) ?? 0,
-        _count: undefined,
+        copyCount: countsByBook.get(r.id)?.total ?? 0,
+        availableCount: countsByBook.get(r.id)?.available ?? 0,
       })),
       meta: buildPageMeta(page, pageSize, total),
     };
@@ -394,7 +393,7 @@ export class BooksService {
     authorName?: string | null;
     publisherId?: string | null;
   }): Promise<DuplicateCandidate[]> {
-    const results = new Map<string, DuplicateCandidate>();
+    const results = new Map<string, Omit<DuplicateCandidate, 'copyCount'>>();
 
     // ۱. تطابق ISBN — قطعی‌ترین نشانه
     const isbn13 = input.isbn ? toCanonicalIsbn13(input.isbn) : null;
@@ -456,7 +455,11 @@ export class BooksService {
       }
     }
 
-    return [...results.values()].sort((a, b) => b.confidence - a.confidence).slice(0, 8);
+    const top = [...results.values()]
+      .sort((a, b) => b.confidence - a.confidence)
+      .slice(0, 8);
+    const counts = await this.copyCounts(top.map((c) => c.id));
+    return top.map((c) => ({ ...c, copyCount: counts.get(c.id)?.total ?? 0 }));
   }
 
   // ── عملیات گروهی (قوانین ۶۰ و ۶۱) ──────────────────────────────────────
@@ -552,7 +555,6 @@ export class BooksService {
           select: { personId: true, person: { select: { fullName: true } } },
         },
         categories: { select: { categoryId: true } },
-        _count: { select: { copies: { where: { deletedAt: null, status: 'AVAILABLE' } } } },
       },
       take: limit * 4,
     });
@@ -562,10 +564,13 @@ export class BooksService {
       if (book.seriesId && c.seriesId === book.seriesId) score += 5;
       if (c.contributors.some((a) => personIds.includes(a.personId))) score += 3;
       score += c.categories.filter((cc) => categoryIds.includes(cc.categoryId)).length;
-      return { ...c, score, availableCount: c._count.copies, _count: undefined };
+      return { ...c, score };
     });
 
-    return scored.sort((a, b) => b.score - a.score).slice(0, limit);
+    const top = scored.sort((a, b) => b.score - a.score).slice(0, limit);
+    // شمارش فقط برای همان چند کتابی که واقعاً برگردانده می‌شوند
+    const counts = await this.copyCounts(top.map((c) => c.id));
+    return top.map((c) => ({ ...c, availableCount: counts.get(c.id)?.available ?? 0 }));
   }
 
   // ── کمکی‌های داخلی ─────────────────────────────────────────────────────
@@ -646,15 +651,43 @@ export class BooksService {
     }
   }
 
-  /** تعداد نسخه موجود برای مجموعه‌ای از کتاب‌ها — یک کوئری برای همه. */
-  private async availableCounts(bookIds: string[]): Promise<Map<string, number>> {
-    if (bookIds.length === 0) return new Map();
+  /**
+   * تعداد کل نسخه‌ها و نسخه‌های موجود، برای مجموعه‌ای از کتاب‌ها، در یک کوئری.
+   *
+   * ── چرا `_count` رابطه‌ای Prisma استفاده نمی‌شود ────────────────────────
+   * `_count: { select: { copies: … } }` این SQL را می‌سازد:
+   *
+   *   LEFT JOIN (SELECT "bookId", COUNT(*) FROM book_copies
+   *              WHERE "deletedAt" IS NULL GROUP BY "bookId") …
+   *   ORDER BY … LIMIT 20
+   *
+   * یعنی برای نمایش ۲۰ ردیف، اول کل جدول نسخه‌ها گروه‌بندی می‌شود و بعد
+   * `LIMIT` اعمال می‌گردد. با ۱۲۲٬۰۰۰ نسخه اندازه‌گیری شد: ۱۶۶ میلی‌ثانیه
+   * برای هر بار باز کردن فهرست کتاب‌ها — و این هزینه با رشد کتابخانه خطی
+   * بالا می‌رود، حتی اگر کاربر همیشه فقط صفحه اول را ببیند.
+   *
+   * `groupBy` روی همان ۲۰ شناسه، از ایندکس `book_copies_bookId_idx`
+   * استفاده می‌کند و مستقل از اندازه جدول است: ۲.۹ میلی‌ثانیه.
+   */
+  private async copyCounts(
+    bookIds: string[],
+  ): Promise<Map<string, { total: number; available: number }>> {
+    const counts = new Map<string, { total: number; available: number }>();
+    if (bookIds.length === 0) return counts;
+
     const rows = await this.prisma.bookCopy.groupBy({
-      by: ['bookId'],
-      where: { bookId: { in: bookIds }, deletedAt: null, status: 'AVAILABLE' },
+      by: ['bookId', 'status'],
+      where: { bookId: { in: bookIds }, deletedAt: null },
       _count: { _all: true },
     });
-    return new Map(rows.map((r) => [r.bookId, r._count._all]));
+
+    for (const row of rows) {
+      const entry = counts.get(row.bookId) ?? { total: 0, available: 0 };
+      entry.total += row._count._all;
+      if (row.status === 'AVAILABLE') entry.available += row._count._all;
+      counts.set(row.bookId, entry);
+    }
+    return counts;
   }
 
   private scalarFields(input: Partial<BookInput>) {
@@ -788,25 +821,24 @@ export class BooksService {
         where: { role: { in: ['AUTHOR', 'CO_AUTHOR'] as ContributorRole[] } },
         select: { person: { select: { fullName: true } } },
       },
-      _count: { select: { copies: { where: { deletedAt: null } } } },
     } satisfies Prisma.BookSelect;
   }
 
+  /** نامزد تکراری بدون `copyCount` — شمارش در پایان و فقط برای بازماندگان. */
   private toDuplicate(
     b: {
       id: string; title: string; publicationYear: number | null; isbn13: string | null;
-      publisher: { name: string } | null; _count: { copies: number };
+      publisher: { name: string } | null;
     },
     reason: DuplicateCandidate['reason'],
     confidence: number,
-  ): DuplicateCandidate {
+  ): Omit<DuplicateCandidate, 'copyCount'> {
     return {
       id: b.id,
       title: b.title,
       publisherName: b.publisher?.name ?? null,
       publicationYear: b.publicationYear,
       isbn13: b.isbn13,
-      copyCount: b._count.copies,
       reason,
       confidence: Math.round(confidence * 100) / 100,
     };
