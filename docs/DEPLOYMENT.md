@@ -211,6 +211,7 @@ docker compose logs api | grep '<شناسه درخواست>'
 | روی ویندوز: `pnpm` شناخته نمی‌شود | نصب نشده یا `PATH` تازه نشده | `npm install -g pnpm@9` و سپس پنجره جدید PowerShell |
 | روی ویندوز: `createdb` شناخته نمی‌شود | ابزارهای PostgreSQL روی `PATH` نیستند | لازم نیست — `pnpm db:create` همان کار را بدون PATH انجام می‌دهد |
 | «DATABASE_URL تعریف نشده است» با وجود ساختن `.env` | فایل در جای درست نیست | `.env` باید در **ریشه مخزن** باشد، کنار `package.json` اصلی |
+| «Failed to resolve import @darin/shared» یا صدها خطای «Cannot find module» | بسته مشترک یا کلاینت Prisma ساخته نشده | `pnpm prepare:workspace` — معمولاً `pnpm install` خودش این کار را می‌کند |
 
 ---
 

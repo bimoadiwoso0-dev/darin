@@ -8,7 +8,9 @@
   },
   "packageManager": "pnpm@9.12.0",
   "scripts": {
-    "dev": "pnpm --parallel --filter \"./apps/*\" dev",
+    "postinstall": "node scripts/postinstall.mjs",
+    "prepare:workspace": "pnpm --filter @darin/shared build && pnpm --filter @darin/api exec prisma generate",
+    "dev": "pnpm --filter @darin/shared build && pnpm --parallel --filter \"./apps/*\" --filter @darin/shared dev",
     "build": "pnpm --filter @darin/shared build && pnpm --filter @darin/api build && pnpm --filter @darin/web build",
     "lint": "eslint .",
     "test": "pnpm -r test",

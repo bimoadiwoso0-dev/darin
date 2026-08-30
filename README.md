@@ -122,6 +122,7 @@ pnpm dev
 | `pnpm test` | آزمون‌های یکپارچه (روی پایگاه داده `_test`) |
 | `pnpm typecheck` | بررسی نوع در کل مخزن |
 | `pnpm lint` | ESLint |
+| `pnpm prepare:workspace` | ساخت بسته مشترک و تولید کلاینت Prisma (خودکار پس از `pnpm install`) |
 | `pnpm db:create` | ساخت پایگاه داده از روی `DATABASE_URL` (اگر نباشد) |
 | `pnpm db:migrate` | اعمال مهاجرت‌ها |
 | `pnpm db:reset` | بازسازی کامل پایگاه داده توسعه |
