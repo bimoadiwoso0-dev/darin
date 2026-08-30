@@ -128,6 +128,8 @@ export default tseslint.config(
       '**/*.spec.ts', '**/*.test.ts',
       'apps/api/test/**/*.ts',
       'apps/api/prisma/**/*.ts',
+      // اسکریپت‌های ساخت — خارج از پروژه TypeScript، مثل اسکریپت‌های Prisma
+      'apps/api/scripts/**/*.mjs',
     ],
     extends: [tseslint.configs.disableTypeChecked],
     languageOptions: { globals: { ...globals.node, ...globals.jest } },

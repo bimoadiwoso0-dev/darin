@@ -16,7 +16,7 @@
     "db:reset": "prisma migrate reset --force",
     "db:seed": "tsx prisma/seed.ts",
     "seed:perf": "tsx prisma/seed-performance.ts",
-    "clean": "rm -rf dist dist-seed tsconfig.tsbuildinfo tsconfig.seed.tsbuildinfo",
+    "clean": "node scripts/clean.mjs",
     "perf:measure": "tsx prisma/measure-performance.ts"
   },
   "prisma": {

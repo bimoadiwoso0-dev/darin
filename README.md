@@ -32,23 +32,66 @@
 
 ## راه‌اندازی برای توسعه
 
-نیازمندی‌ها: **Node.js ≥ 20.10**، **pnpm 9**، **PostgreSQL 16**، و اختیاری **Redis 7**.
+نیازمندی‌ها: **Node.js ≥ 20.10**، **pnpm 9**، **PostgreSQL 16**، و اختیاری
+**Redis 7** (بدون آن هم کار می‌کند؛ `QUEUE_ENABLED=false`).
+
+### لینوکس و مک
 
 ```bash
-git clone <repo> darin && cd darin
+git clone <آدرس-مخزن> darin && cd darin
 pnpm install
 
 cp .env.example .env
-# دو کلید JWT را با دستور زیر بسازید و در .env بگذارید:
-openssl rand -base64 48
+openssl rand -base64 48   # دو بار اجرا کنید و در .env بگذارید
 
-# پایگاه داده
 createdb darin
 pnpm db:migrate
-pnpm db:seed            # داده سیستمی + داده نمایشی
+pnpm db:seed              # داده سیستمی + داده نمایشی
 
-pnpm dev                # API روی :3001 و رابط کاربری روی :5173
+pnpm dev                  # API روی :3001 و رابط کاربری روی :5173
 ```
+
+### ویندوز (PowerShell)
+
+دستورهای بالا یونیکسی‌اند. روی ویندوز این‌ها را بزنید:
+
+```powershell
+# ── ۱. pnpm ─────────────────────────────────────────────────────────────
+# Node.js را از nodejs.org نصب کنید، سپس:
+npm install -g pnpm@9
+pnpm --version            # باید ۹.x نشان دهد
+
+# ── ۲. وابستگی‌ها ───────────────────────────────────────────────────────
+# داخل پوشه پروژه (اگر مخزن را از قبل دارید، git clone لازم نیست)
+pnpm install
+
+# ── ۳. فایل .env ────────────────────────────────────────────────────────
+Copy-Item .env.example .env
+
+# دو کلید JWT بسازید (جایگزین openssl در ویندوز):
+[Convert]::ToBase64String((1..48 | ForEach-Object { Get-Random -Max 256 }))
+[Convert]::ToBase64String((1..48 | ForEach-Object { Get-Random -Max 256 }))
+# هر کدام را در JWT_ACCESS_SECRET و JWT_REFRESH_SECRET بگذارید — باید متفاوت باشند
+
+# ── ۴. پایگاه داده ──────────────────────────────────────────────────────
+# PostgreSQL 16 را از postgresql.org/download/windows نصب کنید.
+# ابزارهایش روی PATH نیستند، پس مسیر کامل را صدا بزنید:
+& "C:\Program Files\PostgreSQL\16\bin\createdb.exe" -U postgres darin
+
+# رمزی که هنگام نصب PostgreSQL گذاشتید را در DATABASE_URL داخل .env بنویسید:
+#   DATABASE_URL=postgresql://postgres:<رمز-شما>@localhost:5432/darin?schema=public
+
+# ── ۵. اجرا ─────────────────────────────────────────────────────────────
+pnpm db:migrate
+pnpm db:seed
+pnpm dev
+```
+
+> **اگر `pnpm` پس از نصب شناخته نشد،** پنجره PowerShell را ببندید و دوباره
+> باز کنید تا `PATH` تازه خوانده شود.
+
+> **اگر `npm install -g` خطای دسترسی داد،** PowerShell را با «Run as
+> administrator» باز کنید.
 
 سپس `http://localhost:5173` را باز کنید. اولین بار **جادوگر راه‌اندازی** اجرا
 می‌شود و حساب مدیر ارشد را می‌سازد — هیچ رمز پیش‌فرضی در کد وجود ندارد.
@@ -80,6 +123,8 @@ pnpm dev                # API روی :3001 و رابط کاربری روی :5173
 | `pnpm db:reset` | بازسازی کامل پایگاه داده توسعه |
 | `pnpm seed:perf` | تولید داده در مقیاس بزرگ برای سنجش کارایی |
 | `pnpm --filter @darin/api perf:measure` | سنجش زمان پاسخ کوئری‌های حیاتی |
+
+همه این دستورها روی ویندوز، لینوکس و مک یکسان کار می‌کنند.
 
 ---
 
