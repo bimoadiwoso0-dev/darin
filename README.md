@@ -42,7 +42,8 @@ git clone <آدرس-مخزن> darin && cd darin
 pnpm install
 
 cp .env.example .env
-openssl rand -base64 48   # دو بار اجرا کنید و در .env بگذارید
+# در .env مقدار CHANGE_ME داخل DATABASE_URL را با رمز PostgreSQL خود عوض کنید
+openssl rand -base64 48   # دو بار اجرا کنید و برای دو کلید JWT در .env بگذارید
 
 pnpm db:create            # پایگاه داده را از روی DATABASE_URL می‌سازد
 pnpm db:migrate
@@ -80,8 +81,12 @@ Copy-Item .env.example .env
 # بررسی اینکه نصب شده و سرویسش در حال اجراست:
 Get-Service -Name "*postgres*"
 
-# رمز را در DATABASE_URL داخل .env بنویسید:
+# ── ۴.۱ مهم: DATABASE_URL را در .env اصلاح کنید ─────────────────────────
+# فایل .env را باز کنید و CHANGE_ME را با رمز کاربر postgres عوض کنید:
 #   DATABASE_URL=postgresql://postgres:<رمز-شما>@localhost:5432/darin?schema=public
+#
+# اگر رمزتان نویسه ویژه دارد (@ : / ? # %) باید رمزگذاری شود:
+#   @ → %40    : → %3A    / → %2F    # → %23    ? → %3F    % → %25
 
 # ── ۵. اجرا ─────────────────────────────────────────────────────────────
 pnpm db:create    # پایگاه داده را می‌سازد — نیازی به createdb و PATH نیست

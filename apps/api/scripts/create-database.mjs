@@ -52,12 +52,33 @@ adminUrl.search = '';
 
 const client = new Client({ connectionString: adminUrl.toString() });
 
+/*
+ * پیام خطا عمداً مقدارهایی را که واقعاً استفاده شده‌اند نام می‌برد.
+ * «اتصال ممکن نشد» به‌تنهایی کاربر را وادار می‌کند حدس بزند کجا را نگاه
+ * کند؛ دیدن نام کاربر و میزبان، غلط بودن `.env` را فوری آشکار می‌کند.
+ * رمز هرگز چاپ نمی‌شود.
+ */
+const target = `کاربر «${decodeURIComponent(parsed.username || '(خالی)')}» روی ` +
+  `${parsed.hostname}:${parsed.port || '5432'}`;
+
 try {
   await client.connect();
 } catch (error) {
   console.error(`✘ اتصال به PostgreSQL ممکن نشد: ${error.message}`);
-  console.error('  بررسی کنید سرویس PostgreSQL در حال اجراست و نام کاربری و رمز');
-  console.error('  در DATABASE_URL درست است.');
+  console.error(`  تلاش شد با ${target}`);
+
+  const message = String(error.message);
+  if (/password|authentication|SASL/i.test(message)) {
+    console.error('  نام کاربری یا رمز در DATABASE_URL درست نیست.');
+    console.error('  فایل `.env` را در ریشه مخزن باز کنید و DATABASE_URL را اصلاح کنید.');
+    console.error('  کاربر پیش‌فرض هر نصب PostgreSQL «postgres» است، با همان رمزی که');
+    console.error('  هنگام نصب انتخاب کرده‌اید.');
+    console.error('  اگر رمز نویسه ویژه دارد (@ : / ? # %) باید در آدرس رمزگذاری شود.');
+  } else if (/ECONNREFUSED|ENOTFOUND|ETIMEDOUT/i.test(message)) {
+    console.error('  سرویس PostgreSQL در دسترس نیست. بررسی کنید نصب و در حال اجراست:');
+    console.error('    ویندوز:  Get-Service -Name "*postgres*"');
+    console.error('    لینوکس:  systemctl status postgresql');
+  }
   process.exit(1);
 }
 
