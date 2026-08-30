@@ -5,7 +5,7 @@
  * Driver Adapter به Client داده شود. برنامه اصلی (NestJS) نسخه خودش را در
  * `src/infrastructure/prisma/prisma.service.ts` می‌سازد.
  */
-import 'dotenv/config';
+import './load-env.js';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../src/generated/prisma/client.js';
 

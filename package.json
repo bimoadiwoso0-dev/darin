@@ -13,6 +13,7 @@
     "lint": "eslint .",
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",
+    "db:create": "pnpm --filter @darin/api db:create",
     "db:migrate": "pnpm --filter @darin/api db:migrate",
     "db:seed": "pnpm --filter @darin/api db:seed",
     "db:reset": "pnpm --filter @darin/api db:reset",

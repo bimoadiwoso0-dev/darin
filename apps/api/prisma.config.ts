@@ -1,4 +1,12 @@
-import 'dotenv/config';
+import { config } from 'dotenv';
+
+/*
+ * همان ترتیب `prisma/load-env.ts` و `app.module.ts`: `.env` محلی، سپس
+ * ریشه مخزن. اینجا عمداً درون‌خطی نوشته شده و از فایل مشترک import
+ * نمی‌شود — این فایل را خود CLI پریزما بارگذاری می‌کند و وابسته کردنش به
+ * ماژول دیگری، بارگذاری را شکننده می‌کند.
+ */
+config({ path: ['.env', '../../.env'], quiet: true });
 import path from 'node:path';
 import { defineConfig, env } from 'prisma/config';
 

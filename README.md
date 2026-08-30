@@ -44,7 +44,7 @@ pnpm install
 cp .env.example .env
 openssl rand -base64 48   # دو بار اجرا کنید و در .env بگذارید
 
-createdb darin
+pnpm db:create            # پایگاه داده را از روی DATABASE_URL می‌سازد
 pnpm db:migrate
 pnpm db:seed              # داده سیستمی + داده نمایشی
 
@@ -74,14 +74,17 @@ Copy-Item .env.example .env
 # هر کدام را در JWT_ACCESS_SECRET و JWT_REFRESH_SECRET بگذارید — باید متفاوت باشند
 
 # ── ۴. پایگاه داده ──────────────────────────────────────────────────────
-# PostgreSQL 16 را از postgresql.org/download/windows نصب کنید.
-# ابزارهایش روی PATH نیستند، پس مسیر کامل را صدا بزنید:
-& "C:\Program Files\PostgreSQL\16\bin\createdb.exe" -U postgres darin
+# PostgreSQL 16 را از postgresql.org/download/windows نصب کنید و رمزی که
+# هنگام نصب می‌گذارید را به خاطر بسپارید.
 
-# رمزی که هنگام نصب PostgreSQL گذاشتید را در DATABASE_URL داخل .env بنویسید:
+# بررسی اینکه نصب شده و سرویسش در حال اجراست:
+Get-Service -Name "*postgres*"
+
+# رمز را در DATABASE_URL داخل .env بنویسید:
 #   DATABASE_URL=postgresql://postgres:<رمز-شما>@localhost:5432/darin?schema=public
 
 # ── ۵. اجرا ─────────────────────────────────────────────────────────────
+pnpm db:create    # پایگاه داده را می‌سازد — نیازی به createdb و PATH نیست
 pnpm db:migrate
 pnpm db:seed
 pnpm dev
@@ -119,6 +122,7 @@ pnpm dev
 | `pnpm test` | آزمون‌های یکپارچه (روی پایگاه داده `_test`) |
 | `pnpm typecheck` | بررسی نوع در کل مخزن |
 | `pnpm lint` | ESLint |
+| `pnpm db:create` | ساخت پایگاه داده از روی `DATABASE_URL` (اگر نباشد) |
 | `pnpm db:migrate` | اعمال مهاجرت‌ها |
 | `pnpm db:reset` | بازسازی کامل پایگاه داده توسعه |
 | `pnpm seed:perf` | تولید داده در مقیاس بزرگ برای سنجش کارایی |

@@ -209,7 +209,8 @@ docker compose logs api | grep '<شناسه درخواست>'
 | کندی ناگهانی جستجو | آمار برنامه‌ریز کهنه | `docker compose exec postgres psql -U darin -d darin -c 'ANALYZE'` |
 | تازه کردن صفحه ۴۰۴ می‌دهد | Reverse Proxy مسیرها را به کانتینر نمی‌رساند | `proxy_pass` را روی ریشه بگذارید، نه مسیر خاص |
 | روی ویندوز: `pnpm` شناخته نمی‌شود | نصب نشده یا `PATH` تازه نشده | `npm install -g pnpm@9` و سپس پنجره جدید PowerShell |
-| روی ویندوز: `createdb` شناخته نمی‌شود | ابزارهای PostgreSQL روی `PATH` نیستند | مسیر کامل: `& "C:\Program Files\PostgreSQL\16\bin\createdb.exe"` |
+| روی ویندوز: `createdb` شناخته نمی‌شود | ابزارهای PostgreSQL روی `PATH` نیستند | لازم نیست — `pnpm db:create` همان کار را بدون PATH انجام می‌دهد |
+| «DATABASE_URL تعریف نشده است» با وجود ساختن `.env` | فایل در جای درست نیست | `.env` باید در **ریشه مخزن** باشد، کنار `package.json` اصلی |
 
 ---
 

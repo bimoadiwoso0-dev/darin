@@ -11,6 +11,7 @@
     "test": "jest --runInBand",
     "test:watch": "jest --watch",
     "db:generate": "prisma generate",
+    "db:create": "node scripts/create-database.mjs",
     "db:migrate": "prisma migrate deploy",
     "db:migrate:dev": "prisma migrate dev",
     "db:reset": "prisma migrate reset --force",
