@@ -29,15 +29,47 @@ import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
+/**
+ * چگونه pnpm را صدا بزنیم.
+ *
+ * ── چرا `execFileSync('pnpm', …)` روی ویندوز شکست می‌خورد ────────────────
+ * آنجا `pnpm` در واقع `pnpm.cmd` است. Node بدون shell فایل `.cmd` را پیدا
+ * نمی‌کند و خطای `spawnSync pnpm ENOENT` می‌دهد — روی لینوکس و مک هرگز
+ * دیده نمی‌شود.
+ *
+ * راه درست: خود pnpm هنگام اجرای اسکریپت‌ها متغیر `npm_execpath` را روی
+ * فایل جاوااسکریپتِ CLI خودش تنظیم می‌کند. اجرای آن با `node` روی هر سه
+ * سیستم‌عامل یکسان است و اصلاً به shell و پسوند فایل کاری ندارد.
+ */
+function pnpmInvocation() {
+  const execPath = process.env.npm_execpath;
+  if (execPath && /\.(c|m)?js$/.test(execPath)) {
+    return { file: process.execPath, prefix: [execPath], shell: false };
+  }
+  /*
+   * اجرای مستقیم اسکریپت (بدون pnpm). روی ویندوز `shell: true` لازم است
+   * تا `pnpm.cmd` پیدا شود؛ Node از نسخه ۲۰ اجرای `.cmd` بدون shell را
+   * به دلایل امنیتی مسدود کرده است.
+   */
+  return { file: 'pnpm', prefix: [], shell: process.platform === 'win32' };
+}
+
+const pnpm = pnpmInvocation();
+
 function run(label, args, cwd) {
   process.stdout.write(`  ${label}… `);
   try {
-    execFileSync('pnpm', args, { cwd, stdio: 'pipe' });
+    execFileSync(pnpm.file, [...pnpm.prefix, ...args], {
+      cwd,
+      stdio: 'pipe',
+      shell: pnpm.shell,
+    });
     console.log('✔');
     return true;
   } catch (error) {
     console.log('✘');
-    console.error(`    ${String(error.stdout ?? error.message).trim().split('\n').slice(-3).join('\n    ')}`);
+    const detail = String(error.stdout || error.stderr || error.message).trim();
+    console.error(`    ${detail.split('\n').slice(-3).join('\n    ')}`);
     return false;
   }
 }
