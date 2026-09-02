@@ -56,20 +56,24 @@ function pnpmInvocation() {
 
 const pnpm = pnpmInvocation();
 
-function run(label, args, cwd) {
+function run(label, args, cwd, extraEnv) {
   process.stdout.write(`  ${label}… `);
   try {
     execFileSync(pnpm.file, [...pnpm.prefix, ...args], {
       cwd,
       stdio: 'pipe',
       shell: pnpm.shell,
+      env: extraEnv ? { ...process.env, ...extraEnv } : process.env,
     });
     console.log('✔');
     return true;
   } catch (error) {
     console.log('✘');
-    const detail = String(error.stdout || error.stderr || error.message).trim();
-    console.error(`    ${detail.split('\n').slice(-3).join('\n    ')}`);
+    const detail = [error.stdout, error.stderr, error.message]
+      .map((part) => String(part ?? '').trim())
+      .filter(Boolean)
+      .join('\n');
+    console.error(`    ${detail.split('\n').filter(Boolean).slice(-4).join('\n    ')}`);
     return false;
   }
 }
@@ -89,7 +93,28 @@ if (existsSync(sharedSource)) {
   ok = run('ساخت بسته مشترک', ['--filter', '@darin/shared', 'build'], root) && ok;
 }
 if (existsSync(prismaSchema)) {
-  ok = run('تولید کلاینت Prisma', ['--filter', '@darin/api', 'exec', 'prisma', 'generate'], root) && ok;
+  /*
+   * `prisma.config.ts` وجود `DATABASE_URL` را الزامی می‌کند، ولی
+   * `generate` هرگز به پایگاه داده وصل نمی‌شود — فقط از روی schema کد
+   * تولید می‌کند. در یک کلون تازه هنوز `.env` ساخته نشده، پس این الزام
+   * باعث می‌شد `pnpm install` نتواند کلاینت را بسازد و کاربر با انبوهی
+   * خطای «Cannot find module» روبه‌رو شود.
+   *
+   * مقدار جانشین فقط به همین یک فرمان داده می‌شود. فرمان‌هایی که واقعاً
+   * وصل می‌شوند (`db:create`، `db:migrate`) دست‌نخورده می‌مانند و اگر
+   * `DATABASE_URL` نباشد، خطای روشن خودشان را می‌دهند.
+   */
+  const generateEnv = process.env.DATABASE_URL
+    ? undefined
+    : { DATABASE_URL: 'postgresql://unused:unused@localhost:5432/unused?schema=public' };
+
+  ok =
+    run(
+      'تولید کلاینت Prisma',
+      ['--filter', '@darin/api', 'exec', 'prisma', 'generate'],
+      root,
+      generateEnv,
+    ) && ok;
 }
 
 if (!ok) {
