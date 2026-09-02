@@ -10,8 +10,16 @@ coverage/
 .env.*.local
 !.env.example
 
-storage/
-!storage/.gitkeep
+# فایل‌های زمان اجرا: پیوست‌ها، پشتیبان‌ها و ورودی‌های Excel.
+#
+# مسیر عمداً از ریشه لنگر انداخته شده است. الگوی بدون لنگرِ `storage/`
+# **هر** پوشه‌ای با این نام را در هر عمقی می‌گرفت — و یک بار واقعاً
+# `apps/api/src/infrastructure/storage/` را گرفت و فایل سورس
+# `storage.service.ts` هرگز وارد مخزن نشد. نتیجه: هر کلون تازه با خطای
+# «Cannot find module ./storage/storage.service» کامپایل نمی‌شد، در حالی
+# که روی ماشین سازنده فایل موجود بود.
+/apps/api/storage/
+!/apps/api/storage/.gitkeep
 *.log
 logs/
 
